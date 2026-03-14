@@ -1,3 +1,14 @@
+PS C:\Windows\System32\OpenSSH> .\ssh.exe root@115.68.229.141  
+
+ ls
+mkdir -p /opt/dev_list
+cd /opt/dev_list
+
+docker compose up -d --build
+
+test commit
+
+
 1.도커 설치 
 cd /mnt/c/dev_list   # Windows 경로라면
 docker-compose up -d --build
@@ -21,5 +32,49 @@ CREATE USER 'bnk'@'%' IDENTIFIED BY 'bnk_pw';
 GRANT ALL PRIVILEGES ON bnk.* TO 'bnk'@'%';
 FLUSH PRIVILEGES;
 EXIT;
+
+
+# GitHub 토큰은 여기 넣지 말 것. (저장소에 올라가면 push 차단됨)
+
+
+서버>>
+
+서버에서는 cd /opt/dev_list && git pull 한 뒤 필요하면 docker compose up -d --build 로 다시 띄우면 됩니다.
+
+
+1. nginx 리버스 프록시
+nginx/nginx.conf
+80 포트: https:// 로 301 리다이렉트
+443 포트: SSL 적용 후 앱(3000)으로 프록시
+2. docker-compose 변경
+app: 호스트에 3000 포트 노출 제거 → 컨테이너 내부 3000만 사용
+nginx 서비스 추가: 80, 443 노출, nginx.conf와 nginx/ssl 마운트
+3. 자체 서명 인증서 스크립트
+scripts/gen-selfsigned-cert.sh
+nginx/ssl/cert.pem, nginx/ssl/key.pem 생성 (없을 때만)
+서버에서 최초 1회 실행
+4. 문서
+DEPLOY.md
+배포 시 인증서 없으면 gen-selfsigned-cert.sh 1회 실행 후 docker compose up 하도록 안내
+HTTPS 사용 섹션: ERR_SSL_PROTOCOL_ERROR 대응, 자체 서명 경고 처리, 접속 주소는 https://서버IP 로 안내
+5. .gitignore
+nginx/ssl/*.pem 추가 (키/인증서는 저장소에 올리지 않음)
+서버에서 할 일
+코드 반영
+로컬에서 커밋·푸시한 뒤 서버에서:
+
+cd /opt/dev_list
+git pull
+인증서 생성 (최초 1회)
+
+chmod +x scripts/gen-selfsigned-cert.sh
+./scripts/gen-selfsigned-cert.sh
+재기동
+
+docker compose down
+docker compose up -d --build
+접속
+브라우저에서 https://115.68.229.141 로 접속.
+자체 서명 인증서라 "연결이 비공개가 아님" 경고가 나오면 고급 → 접속(또는 예외 추가) 로 진행하면 됩니다.
 
 
