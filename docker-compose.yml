@@ -4,8 +4,8 @@ services:
   app:
     build: .
     container_name: iwinv-app
-    expose:
-      - "3000"
+    ports:
+      - "3000:3000"
     environment:
       PORT: 3000
       # Docker 안에서는 반드시 host "db" (아래 db 서비스). 바꾸면 안 됨.

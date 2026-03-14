@@ -187,6 +187,7 @@ async function initTable(p) {
 }
 
 const SMTP_TIMEOUT_MS = 10000; // 10초 안에 연결/발송 안 되면 실패
+let sendMailLastLogTime = 0; // 동일 SMTP 에러 1분에 한 번만 로그
 
 function getTransporter() {
   const host = process.env.SMTP_HOST;
@@ -348,9 +349,12 @@ app.post('/api/forgot-password', async (req, res) => {
         const mailMsg = (mailErr && mailErr.message || '') + (mailErr && mailErr.code || '');
         const isSmtpNetwork = /SMTP_TIMEOUT|ETIMEOUT|EDNS|queryA|getaddrinfo|EAI_AGAIN|ECONNREFUSED|smtp\.gmail\.com/i.test(mailMsg);
         if (isSmtpNetwork) {
-          console.warn('비밀번호 재설정 메일 발송 실패 (SMTP/네트워크):', mailErr.message || mailErr.code);
+          if (!sendMailLastLogTime || Date.now() - sendMailLastLogTime > 60000) {
+            sendMailLastLogTime = Date.now();
+            console.warn('비밀번호 재설정 메일 발송 실패 (SMTP/네트워크):', (mailErr && mailErr.message) || mailErr);
+          }
         } else {
-          console.error('비밀번호 재설정 메일 발송 실패:', mailErr);
+          console.error('비밀번호 재설정 메일 발송 실패:', mailErr.message || mailErr);
         }
         const userMsg = /SMTP_TIMEOUT|ETIMEOUT/i.test(mailMsg)
           ? '메일 서버 연결 시간이 초과되었습니다. 로컬/서버 방화벽·DNS 또는 Gmail SMTP 접속이 막혀 있을 수 있습니다.'
