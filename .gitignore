@@ -1,3 +1,5 @@
 node_modules/
 .env
 nginx/ssl/*.pem
+# 개인 메모/시크릿 포함 가능 — 저장소에 올리지 않음
+계정정보.me
