@@ -1,0 +1,1419 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>프로젝트 관리</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --header-bg: #2c3e50;
+      --header-text: #fff;
+      --bar-bg: #ecf0f1;
+      --table-bg: #fff;
+      --border: #e0e0e0;
+      --link: #2980b9;
+      --status-on: #27ae60;
+      --status-warn: #e74c3c;
+      --btn-bg: #3498db;
+      --btn-hover: #2980b9;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Noto Sans KR', -apple-system, sans-serif;
+      background: #f5f6fa;
+      color: #2c3e50;
+      min-height: 100vh;
+    }
+
+    /* 헤더 */
+    .header {
+      background: var(--header-bg);
+      color: var(--header-text);
+      padding: 1.25rem 2rem;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+    }
+    .header h1 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+    }
+    .header .subtitle {
+      font-size: 0.875rem;
+      opacity: 0.9;
+      margin-top: 0.25rem;
+    }
+
+    /* 검색 + 시스템 상태 바 */
+    .toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 1rem;
+      padding: 0.75rem 2rem;
+      background: var(--bar-bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .search-wrap {
+      flex: 1;
+      max-width: 420px;
+    }
+    .search-wrap input {
+      width: 100%;
+      padding: 0.5rem 1rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: inherit;
+    }
+    .search-wrap input::placeholder {
+      color: #95a5a6;
+    }
+    .search-wrap input:focus {
+      outline: none;
+      border-color: var(--link);
+      box-shadow: 0 0 0 2px rgba(41, 128, 185, 0.2);
+    }
+    .system-status {
+      display: flex;
+      align-items: center;
+      gap: 1.25rem;
+      font-size: 0.8rem;
+      color: #5d6d7e;
+    }
+    .system-status .cpu { color: var(--status-on); }
+    .system-status .memory { color: var(--status-warn); }
+    .system-status .memory-detail { color: #7f8c8d; }
+    .system-status .last-update { color: #95a5a6; }
+
+    /* 테이블 컨테이너 */
+    .table-wrap {
+      margin: 1.25rem 2rem 2rem;
+      background: var(--table-bg);
+      border-radius: 8px;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    thead {
+      background: #f8f9fa;
+      border-bottom: 2px solid var(--border);
+    }
+    th {
+      text-align: left;
+      padding: 0.75rem 1rem;
+      font-weight: 600;
+      color: #34495e;
+    }
+    th.status { width: 48px; text-align: center; }
+    th.company { min-width: 120px; }
+    th.isp { width: 70px; }
+    th.desc { min-width: 160px; }
+    th.tech { min-width: 80px; }
+    th.url { min-width: 200px; }
+    th.info { min-width: 200px; }
+    th.build { width: 70px; text-align: center; }
+    th.service { width: 80px; text-align: center; }
+    td {
+      padding: 0.65rem 1rem;
+      border-bottom: 1px solid #eee;
+      vertical-align: middle;
+    }
+    tbody tr:hover {
+      background: #f8fafc;
+    }
+    .status-dot {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--status-on);
+    }
+    .status-dot.off {
+      background: #bdc3c7;
+    }
+    a.url-link {
+      color: var(--link);
+      text-decoration: none;
+      font-size: 0.8rem;
+    }
+    a.url-link:hover {
+      text-decoration: underline;
+    }
+    .info-copy {
+      cursor: pointer;
+      font-size: 0.8rem;
+      color: #5d6d7e;
+      padding: 0.25rem 0;
+    }
+    .info-copy:hover {
+      color: var(--link);
+    }
+    .info-copy .label {
+      color: #95a5a6;
+      font-size: 0.75rem;
+    }
+    .info-copy-wrap { display: flex; flex-direction: column; gap: 0.2rem; }
+    .info-copy-wrap .info-copy { padding: 0.2rem 0; }
+    .btn-detail {
+      display: inline-block;
+      padding: 0.35rem 0.75rem;
+      background: var(--btn-bg);
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      font-family: inherit;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    .btn-detail:hover {
+      background: var(--btn-hover);
+    }
+    .build-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.35rem;
+      font-size: 0.8rem;
+      color: #27ae60;
+    }
+
+    /* 모달 공통 */
+    .modal-overlay {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      transition: opacity 0.2s, visibility 0.2s;
+    }
+    .modal-overlay.open {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+    }
+    .modal {
+      background: #fff;
+      border-radius: 8px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+      width: 90%;
+      max-width: 480px;
+      max-height: 90vh;
+      overflow: auto;
+    }
+    .modal .modal-header {
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 1.1rem;
+    }
+    .modal .modal-body { padding: 1.25rem; }
+    .modal .modal-footer {
+      padding: 1rem 1.25rem;
+      border-top: 1px solid var(--border);
+      display: flex;
+      justify-content: flex-end;
+      gap: 0.5rem;
+    }
+    .form-group {
+      margin-bottom: 1rem;
+    }
+    .form-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 500;
+      color: #5d6d7e;
+      margin-bottom: 0.35rem;
+    }
+    .form-group input[type="text"],
+    .form-group input[type="password"],
+    .form-group input[type="email"],
+    .form-group input[type="url"] {
+      width: 100%;
+      min-width: 0;
+      padding: 0.5rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      box-sizing: border-box;
+    }
+    .form-group input:focus {
+      outline: none;
+      border-color: var(--link);
+    }
+    .form-row {
+      display: flex;
+      gap: 0.75rem;
+    }
+    .form-row .form-group { flex: 1; }
+    .form-group.checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .form-group.checkbox input { width: auto; }
+    .btn {
+      padding: 0.5rem 1rem;
+      border-radius: 6px;
+      font-size: 0.9rem;
+      font-family: inherit;
+      cursor: pointer;
+      border: none;
+    }
+    .btn-primary { background: var(--btn-bg); color: #fff; }
+    .btn-primary:hover { background: var(--btn-hover); }
+    .btn-secondary { background: #95a5a6; color: #fff; }
+    .btn-secondary:hover { background: #7f8c8d; }
+    .header-actions { margin-left: auto; }
+    .header-actions .btn { padding: 0.4rem 0.75rem; font-size: 0.85rem; }
+
+    /* 탭 */
+    .tabs {
+      display: flex;
+      gap: 0;
+      padding: 0 2rem;
+      background: #fff;
+      border-bottom: 2px solid var(--border);
+      box-shadow: 0 1px 0 rgba(0,0,0,0.05);
+    }
+    .tabs .tab {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: #5d6d7e;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      margin-bottom: -2px;
+      transition: color 0.2s, border-color 0.2s;
+    }
+    .tabs .tab:hover { color: var(--link); }
+    .tabs .tab.active { color: var(--btn-bg); border-bottom-color: var(--btn-bg); }
+    .tab-panel { display: none; }
+    .tab-panel.active { display: block; }
+
+    /* 카테고리 칩 영역 */
+    .category-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      margin-top: 0.5rem;
+      padding: 1rem 2rem;
+      background: #fff;
+      border-bottom: 1px solid var(--border);
+    }
+    .category-chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      align-items: center;
+    }
+    .chip {
+      display: inline-block;
+      padding: 0.4rem 1rem;
+      border-radius: 999px;
+      font-size: 0.85rem;
+      cursor: pointer;
+      border: 1px solid #d5dbdd;
+      background: #f0f3f5;
+      color: #5d6d7e;
+      transition: background 0.2s, border-color 0.2s, color 0.2s;
+    }
+    .chip:hover {
+      background: #e4e8eb;
+      border-color: #bdc3c7;
+    }
+    .chip.active {
+      background: #d6eaf8;
+      border-color: var(--btn-bg);
+      color: var(--btn-hover);
+    }
+    .category-actions {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+    .category-actions select {
+      padding: 0.4rem 0.75rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-family: inherit;
+      background: #fff;
+    }
+    .btn-icon {
+      width: 36px;
+      height: 36px;
+      padding: 0;
+      border-radius: 50%;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      border: 1px solid var(--border);
+      background: #fff;
+      cursor: pointer;
+    }
+    .btn-icon:hover { background: #f0f3f5; }
+    .btn-icon svg { width: 18px; height: 18px; }
+    .manage-modal .modal { max-width: 720px; }
+    .manage-modal .table-wrap { margin: 0; border: none; box-shadow: none; }
+
+    .panel-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0.75rem 2rem;
+      background: var(--bar-bg);
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-toolbar .search-wrap { margin: 0; min-width: 200px; flex: 1; }
+    .panel-toolbar .search-wrap input { min-width: 0; box-sizing: border-box; }
+    .btn-sm { padding: 0.25rem 0.6rem; font-size: 0.8rem; }
+    .table-wrap.compact th.service { width: 140px; text-align: center; }
+    .modal-body a { color: var(--link); text-decoration: none; }
+    .modal-body a:hover { text-decoration: underline; }
+    #loginRequired {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 60vh;
+      padding: 2rem;
+      text-align: center;
+    }
+    #loginRequired p { font-size: 1.1rem; color: #5d6d7e; margin-bottom: 1.5rem; }
+    #mainContent { display: none; }
+    #mainContent.visible { display: block; }
+  </style>
+</head>
+<body>
+  <!-- 로그인 모달 -->
+  <div id="loginModal" class="modal-overlay">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">로그인</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>이메일 (아이디)</label>
+          <input type="text" id="loginId" placeholder="이메일 또는 아이디" />
+        </div>
+        <div class="form-group">
+          <label>비밀번호</label>
+          <input type="password" id="loginPw" placeholder="비밀번호" />
+        </div>
+        <p id="loginError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+        <p style="margin-top: 0.75rem; font-size: 0.85rem;">
+          <a href="#" id="loginToRegister" onclick="window.openRegisterFromLogin && window.openRegisterFromLogin(); return false;">회원가입</a>
+          &nbsp;·&nbsp;
+          <a href="#" id="loginToForgot" onclick="window.openForgotFromLogin && window.openForgotFromLogin(); return false;">비밀번호 찾기</a>
+        </p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-primary" id="loginBtn" onclick="window.doLogin && window.doLogin(); return false;">로그인</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 회원가입 모달 -->
+  <div id="registerModal" class="modal-overlay">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">회원가입</div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label>이메일</label>
+          <input type="email" id="registerEmail" placeholder="example@email.com" />
+        </div>
+        <div class="form-group">
+          <label>비밀번호</label>
+          <input type="password" id="registerPassword" placeholder="4자 이상" />
+        </div>
+        <div class="form-group">
+          <label>비밀번호 확인</label>
+          <input type="password" id="registerPasswordConfirm" placeholder="비밀번호 다시 입력" />
+        </div>
+        <div class="form-group">
+          <label>이름 (선택)</label>
+          <input type="text" id="registerName" placeholder="이름" />
+        </div>
+        <p id="registerError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="registerCancelBtn" onclick="window.closeRegisterModal && window.closeRegisterModal(); return false;">취소</button>
+        <button type="button" class="btn btn-primary" id="registerBtn" onclick="window.doRegister && window.doRegister(); return false;">가입</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 비밀번호 찾기 모달 -->
+  <div id="forgotModal" class="modal-overlay">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">비밀번호 찾기</div>
+      <div class="modal-body">
+        <p style="font-size: 0.9rem; color: #5d6d7e; margin-bottom: 1rem;">가입한 이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
+        <div class="form-group">
+          <label>이메일</label>
+          <input type="email" id="forgotEmail" placeholder="example@email.com" />
+        </div>
+        <p id="forgotError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+        <p id="forgotSuccess" style="color: var(--status-on); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="forgotCancelBtn" onclick="window.closeForgotModal && window.closeForgotModal(); return false;">취소</button>
+        <button type="button" class="btn btn-primary" id="forgotSendBtn" onclick="window.sendForgotPassword && window.sendForgotPassword(); return false;">재설정 메일 발송</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 상세/수정 모달 (추가·수정 공용) -->
+  <div id="editModal" class="modal-overlay">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header" id="editModalTitle">프로젝트 수정</div>
+      <div class="modal-body">
+        <input type="hidden" id="editProjectId" />
+        <div class="form-group">
+          <label>프로젝트명</label>
+          <input type="text" id="editName" />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>버전</label>
+            <input type="text" id="editVersion" placeholder="v1.0" />
+          </div>
+          <div class="form-group">
+            <label>스택</label>
+            <input type="text" id="editTech" placeholder="React, Node" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label>설명</label>
+          <input type="text" id="editDesc" />
+        </div>
+        <div class="form-group">
+          <label>URL</label>
+          <input type="url" id="editUrl" placeholder="http://..." />
+        </div>
+        <div class="form-group">
+          <label>GitHub URL</label>
+          <input type="url" id="editGithubUrl" placeholder="https://github.com/..." />
+        </div>
+        <div class="form-group">
+          <label>기타</label>
+          <input type="text" id="editEtc" placeholder="기타 메모..." />
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>로그인 ID</label>
+            <input type="text" id="editLoginId" />
+          </div>
+          <div class="form-group">
+            <label>로그인 PW</label>
+            <input type="password" id="editLoginPw" />
+          </div>
+        </div>
+        <div class="form-group checkbox">
+          <input type="checkbox" id="editStatus" checked />
+          <label for="editStatus">상태 (활성)</label>
+        </div>
+        <div class="form-group">
+          <label>카테고리</label>
+          <select id="editCategoryId" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;">
+            <option value="">선택 안 함</option>
+          </select>
+        </div>
+        <div class="form-group checkbox">
+          <input type="checkbox" id="editBuild" checked />
+          <label for="editBuild">빌드</label>
+        </div>
+        <p id="editError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="editCancelBtn">취소</button>
+        <button type="button" class="btn btn-primary" id="editSaveBtn" onclick="window.saveProjectEdit && window.saveProjectEdit(); return false;">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <header class="header" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
+    <div>
+      <h1>데모 서비스 관리</h1>
+      <p class="subtitle">카테고리별 데모 서비스 목록</p>
+    </div>
+    <div class="header-actions" id="headerActions" style="display: none;">
+      <span id="headerUserName" style="margin-right: 0.5rem; font-size: 0.9rem;"></span>
+      <button type="button" class="btn btn-secondary" id="logoutBtn">로그아웃</button>
+    </div>
+  </header>
+
+  <!-- 로그인 전 안내 -->
+  <div id="loginRequired">
+    <p>로그인 후 이용해 주세요.</p>
+    <button type="button" class="btn btn-primary" id="showLoginBtn" onclick="window.openLoginModal && window.openLoginModal(); return false;">로그인</button>
+  </div>
+
+  <!-- 로그인 후에만 보이는 메인 영역 -->
+  <div id="mainContent">
+  <div class="toolbar">
+    <div class="search-wrap">
+      <input type="text" id="search" placeholder="카테고리명, 설명 등으로 검색..." />
+    </div>
+    <div class="system-status">
+      <span class="cpu">CPU: <span id="cpuVal">0%</span></span>
+      <span class="memory">Memory: <span id="memPct">0%</span></span>
+      <span class="memory-detail"><span id="memUsed">0</span>MB / <span id="memTotal">0</span>MB</span>
+      <span class="last-update">Last Update: <span id="lastUpdate">0초 전</span></span>
+    </div>
+  </div>
+
+  <!-- 카테고리 칩 + 버튼 영역 -->
+  <div class="category-bar">
+    <div class="category-chips" id="categoryChips">
+      <span class="chip active" data-category-id="">전체</span>
+    </div>
+    <div class="category-actions">
+      <select id="filterCategory" title="카테고리">
+        <option value="">카테고리 (전체)</option>
+      </select>
+      <button type="button" class="btn btn-secondary btn-sm" id="categoryManageOpenBtn">카테고리 관리</button>
+      <button type="button" class="btn-icon" id="refreshBtn" title="새로고침">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
+      </button>
+      <button type="button" class="btn btn-primary btn-sm" id="projectAddBtn" onclick="window.openProjectAdd && window.openProjectAdd(); return false;">+ 추가</button>
+    </div>
+  </div>
+
+  <!-- 프로젝트 목록 -->
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th class="status" style="width:48px;text-align:center">상태</th>
+          <th class="desc">카테고리</th>
+          <th class="company">프로젝트명</th>
+          <th class="isp" style="width:70px">ISP</th>
+          <th class="desc">설명</th>
+          <th class="tech" style="min-width:80px">SMARTBOLT</th>
+          <th class="url">URL</th>
+          <th class="desc">기타</th>
+          <th class="info">정보 (클릭 복사)</th>
+          <th class="build" style="width:70px;text-align:center">빌드</th>
+          <th class="service" style="width:80px">서비스</th>
+        </tr>
+      </thead>
+      <tbody id="tbody">
+      </tbody>
+    </table>
+  </div>
+  </div>
+  <!-- // mainContent -->
+
+  <!-- 카테고리 관리 모달 -->
+  <div id="categoryManageModal" class="modal-overlay manage-modal">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header">카테고리 관리</div>
+      <div class="modal-body">
+        <div class="panel-toolbar" style="padding:1rem 0 0.75rem 0; gap: 0.75rem;">
+          <div class="search-wrap" style="min-width: 220px; max-width: 320px;">
+            <input type="text" id="categorySearch" placeholder="카테고리명, 설명으로 검색..." />
+          </div>
+          <button type="button" class="btn btn-primary btn-sm" id="categoryAddBtn" style="flex-shrink: 0;">+ 카테고리 추가</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th style="width:60px">번호</th>
+                <th>카테고리명</th>
+                <th>설명</th>
+                <th style="width:80px">정렬</th>
+                <th class="service">관리</th>
+              </tr>
+            </thead>
+            <tbody id="categoryTbody">
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="categoryManageCloseBtn">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 카테고리 추가/수정 모달 -->
+  <div id="categoryModal" class="modal-overlay">
+    <div class="modal" onclick="event.stopPropagation()">
+      <div class="modal-header" id="categoryModalTitle">카테고리 추가</div>
+      <div class="modal-body">
+        <input type="hidden" id="categoryEditId" />
+        <div class="form-group">
+          <label>카테고리명</label>
+          <input type="text" id="categoryName" />
+        </div>
+        <div class="form-group">
+          <label>설명</label>
+          <input type="text" id="categoryDesc" />
+        </div>
+        <div class="form-group">
+          <label>정렬</label>
+          <input type="number" id="categorySort" value="0" min="0" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;" />
+        </div>
+        <p id="categoryError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="categoryCancelBtn">취소</button>
+        <button type="button" class="btn btn-primary" id="categorySaveBtn" onclick="window.saveCategoryEdit && window.saveCategoryEdit(); return false;">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API = window.location.origin;
+    let projects = [];
+    let categories = [];
+    let loggedIn = false;
+    let pendingEditProjectId = null;
+    let selectedCategoryId = '';
+
+    function fetchOpts() {
+      return { credentials: 'include', headers: { 'Content-Type': 'application/json' } };
+    }
+
+    async function checkAuth() {
+      try {
+        const r = await fetch(API + '/api/me', { credentials: 'include' });
+        loggedIn = r.ok;
+        document.getElementById('headerActions').style.display = loggedIn ? 'flex' : 'none';
+        document.getElementById('loginRequired').style.display = loggedIn ? 'none' : 'flex';
+        document.getElementById('mainContent').classList.toggle('visible', !!loggedIn);
+        if (loggedIn) {
+          const data = await r.json().catch(() => ({}));
+          if (data.user) document.getElementById('headerUserName').textContent = data.user;
+        }
+        return loggedIn;
+      } catch (_) {
+        loggedIn = false;
+        document.getElementById('headerActions').style.display = 'none';
+        document.getElementById('loginRequired').style.display = 'flex';
+        document.getElementById('mainContent').classList.remove('visible');
+        return false;
+      }
+    }
+
+    async function loadProjects() {
+      try {
+        let url = API + '/api/projects';
+        if (selectedCategoryId !== '') url += '?category_id=' + encodeURIComponent(selectedCategoryId);
+        const r = await fetch(url, fetchOpts());
+        if (r.ok) projects = await r.json();
+      } catch (_) {
+        projects = [];
+      }
+      await fillFilterDropdowns();
+      filterAndRender();
+    }
+
+    async function fillFilterDropdowns() {
+      let categoryList = [];
+      try {
+        const cr = await fetch(API + '/api/categories', fetchOpts());
+        if (cr.ok) {
+          categoryList = await cr.json();
+          categories = categoryList;
+        }
+      } catch (_) {}
+      const catSel = document.getElementById('filterCategory');
+      if (catSel) {
+        const prev = catSel.value;
+        catSel.innerHTML = '<option value="">카테고리 (전체)</option>' +
+          categoryList.map((c) => '<option value="' + c.id + '">' + escapeHtml(c.name || '') + '</option>').join('') +
+          '<option value="__add_cat__">+ 카테고리</option>';
+        catSel.value = (selectedCategoryId && categoryList.some((c) => String(c.id) === selectedCategoryId)) ? selectedCategoryId : (prev === '__add_cat__' ? '' : prev || '');
+      }
+    }
+
+    function renderCategoryChips() {
+      const wrap = document.getElementById('categoryChips');
+      wrap.querySelectorAll('.chip[data-category-id]').forEach((c) => {
+        if (c.dataset.categoryId !== '') c.remove();
+      });
+      const allChip = wrap.querySelector('.chip[data-category-id=""]');
+      const sel = document.getElementById('filterCategory');
+      if (allChip) {
+        allChip.classList.toggle('active', selectedCategoryId === '');
+        allChip.onclick = () => {
+          selectedCategoryId = '';
+          if (sel) sel.value = '';
+          loadProjects();
+          wrap.querySelectorAll('.chip').forEach((x) => x.classList.remove('active'));
+          allChip.classList.add('active');
+        };
+      }
+      categories.forEach((cat) => {
+        const el = document.createElement('span');
+        el.className = 'chip' + (selectedCategoryId === String(cat.id) ? ' active' : '');
+        el.dataset.categoryId = cat.id;
+        el.textContent = cat.name;
+        el.onclick = () => {
+          selectedCategoryId = String(cat.id);
+          if (sel) sel.value = cat.id;
+          loadProjects();
+          wrap.querySelectorAll('.chip').forEach((x) => x.classList.remove('active'));
+          el.classList.add('active');
+        };
+        wrap.appendChild(el);
+      });
+    }
+
+    async function loadCategoriesForChips() {
+      try {
+        const r = await fetch(API + '/api/categories', fetchOpts());
+        if (r.ok) categories = await r.json();
+      } catch (_) {
+        categories = [];
+      }
+      renderCategoryChips();
+    }
+
+    function openLoginModal(afterLogin) {
+      pendingEditProjectId = afterLogin || null;
+      document.getElementById('loginError').style.display = 'none';
+      document.getElementById('loginPw').value = '';
+      document.getElementById('loginModal').classList.add('open');
+    }
+    window.openLoginModal = openLoginModal;
+
+    function openRegisterFromLogin() {
+      document.getElementById('loginModal').classList.remove('open');
+      document.getElementById('registerError').style.display = 'none';
+      document.getElementById('registerEmail').value = '';
+      document.getElementById('registerPassword').value = '';
+      document.getElementById('registerPasswordConfirm').value = '';
+      document.getElementById('registerName').value = '';
+      document.getElementById('registerModal').classList.add('open');
+    }
+    function openForgotFromLogin() {
+      document.getElementById('loginModal').classList.remove('open');
+      document.getElementById('forgotError').style.display = 'none';
+      document.getElementById('forgotSuccess').style.display = 'none';
+      document.getElementById('forgotEmail').value = '';
+      document.getElementById('forgotModal').classList.add('open');
+    }
+    window.openRegisterFromLogin = openRegisterFromLogin;
+    window.openForgotFromLogin = openForgotFromLogin;
+
+    function closeRegisterModal() {
+      const el = document.getElementById('registerModal');
+      if (el) el.classList.remove('open');
+      const loginEl = document.getElementById('loginModal');
+      if (loginEl) loginEl.classList.add('open');
+    }
+    window.closeRegisterModal = closeRegisterModal;
+
+    function hideRegisterModalOnly() {
+      const el = document.getElementById('registerModal');
+      if (el) el.classList.remove('open');
+    }
+
+    let forgotSendInProgress = false;
+    async function sendForgotPassword() {
+      if (forgotSendInProgress) return;
+      forgotSendInProgress = true;
+      const errEl = document.getElementById('forgotError');
+      const successEl = document.getElementById('forgotSuccess');
+      const emailInput = document.getElementById('forgotEmail');
+      const email = (emailInput && emailInput.value || '').trim();
+      if (errEl) errEl.style.display = 'none';
+      if (successEl) successEl.style.display = 'none';
+      if (!email) {
+        if (errEl) { errEl.textContent = '이메일을 입력하세요.'; errEl.style.display = 'block'; }
+        forgotSendInProgress = false;
+        return;
+      }
+      try {
+        const r = await fetch(API + '/api/forgot-password', { ...fetchOpts(), method: 'POST', body: JSON.stringify({ email }) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          if (errEl) { errEl.textContent = data.error || '실패'; errEl.style.display = 'block'; }
+          forgotSendInProgress = false;
+          return;
+        }
+        if (errEl) errEl.style.display = 'none';
+        if (successEl) {
+          successEl.textContent = data.message || '등록된 이메일이 있다면 재설정 링크를 발송했습니다. 메일을 확인하세요.';
+          successEl.style.display = 'block';
+        }
+      } catch (_) {
+        if (errEl) { errEl.textContent = '네트워크 오류'; errEl.style.display = 'block'; }
+      }
+      forgotSendInProgress = false;
+    }
+    window.sendForgotPassword = sendForgotPassword;
+
+    function closeForgotModal() {
+      const forgotEl = document.getElementById('forgotModal');
+      const loginEl = document.getElementById('loginModal');
+      if (forgotEl) forgotEl.classList.remove('open');
+      if (loginEl) loginEl.classList.add('open');
+    }
+    window.closeForgotModal = closeForgotModal;
+
+    let registerInProgress = false;
+    async function doRegister() {
+      if (registerInProgress) return;
+      registerInProgress = true;
+      const errEl = document.getElementById('registerError');
+      const email = (document.getElementById('registerEmail') && document.getElementById('registerEmail').value || '').trim();
+      const pw = document.getElementById('registerPassword') && document.getElementById('registerPassword').value || '';
+      const pw2 = document.getElementById('registerPasswordConfirm') && document.getElementById('registerPasswordConfirm').value || '';
+      const name = (document.getElementById('registerName') && document.getElementById('registerName').value || '').trim();
+      if (!email) { if (errEl) { errEl.textContent = '이메일을 입력하세요.'; errEl.style.display = 'block'; } registerInProgress = false; return; }
+      if (!pw || pw.length < 4) { if (errEl) { errEl.textContent = '비밀번호는 4자 이상이어야 합니다.'; errEl.style.display = 'block'; } registerInProgress = false; return; }
+      if (pw !== pw2) { if (errEl) { errEl.textContent = '비밀번호가 일치하지 않습니다.'; errEl.style.display = 'block'; } registerInProgress = false; return; }
+      try {
+        const r = await fetch(API + '/api/register', { ...fetchOpts(), method: 'POST', body: JSON.stringify({ email, password: pw, name }) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) { if (errEl) { errEl.textContent = data.error || '가입 실패'; errEl.style.display = 'block'; } registerInProgress = false; return; }
+        hideRegisterModalOnly();
+        const loginRes = await fetch(API + '/api/login', { ...fetchOpts(), method: 'POST', body: JSON.stringify({ id: email, password: pw }) });
+        if (loginRes.ok) {
+          loggedIn = true;
+          const headerActions = document.getElementById('headerActions');
+          const loginRequired = document.getElementById('loginRequired');
+          const mainContent = document.getElementById('mainContent');
+          const headerUserName = document.getElementById('headerUserName');
+          if (headerActions) headerActions.style.display = 'flex';
+          if (loginRequired) loginRequired.style.display = 'none';
+          if (mainContent) mainContent.classList.add('visible');
+          if (headerUserName) headerUserName.textContent = email;
+          loadProjects();
+          loadCategoriesForChips();
+        } else {
+          openLoginModal();
+          const loginIdEl = document.getElementById('loginId');
+          if (loginIdEl) loginIdEl.value = email;
+          const loginErrorEl = document.getElementById('loginError');
+          if (loginErrorEl) loginErrorEl.style.display = 'none';
+        }
+      } catch (_) { if (errEl) { errEl.textContent = '네트워크 오류'; errEl.style.display = 'block'; } }
+      registerInProgress = false;
+    }
+    window.doRegister = doRegister;
+
+    async function openProjectAdd() {
+      const ok = await checkAuth();
+      if (!ok) {
+        openLoginModal();
+        return;
+      }
+      document.getElementById('editModalTitle').textContent = '프로젝트 추가';
+      document.getElementById('editProjectId').value = '';
+      document.getElementById('editName').value = '';
+      document.getElementById('editVersion').value = 'v1.0';
+      document.getElementById('editDesc').value = '';
+      document.getElementById('editTech').value = 'React, Node';
+      document.getElementById('editUrl').value = '';
+      document.getElementById('editGithubUrl').value = '';
+      document.getElementById('editEtc').value = '';
+      document.getElementById('editLoginId').value = '';
+      document.getElementById('editLoginPw').value = '';
+      document.getElementById('editStatus').checked = true;
+      document.getElementById('editBuild').checked = true;
+      document.getElementById('editError').style.display = 'none';
+      if (categories.length === 0) {
+        try {
+          const r = await fetch(API + '/api/categories', fetchOpts());
+          if (r.ok) categories = await r.json();
+        } catch (_) {}
+      }
+      fillEditModalSelects();
+      const catSel = document.getElementById('editCategoryId');
+      catSel.value = selectedCategoryId || '';
+      document.getElementById('editModal').classList.add('open');
+    }
+    window.openProjectAdd = openProjectAdd;
+
+    async function doLogin() {
+      const id = document.getElementById('loginId').value.trim();
+      const pw = document.getElementById('loginPw').value;
+      const errEl = document.getElementById('loginError');
+      try {
+        const r = await fetch(API + '/api/login', {
+          ...fetchOpts(),
+          method: 'POST',
+          body: JSON.stringify({ id, password: pw }),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          errEl.textContent = data.error || '로그인 실패';
+          errEl.style.display = 'block';
+          return;
+        }
+        document.getElementById('loginModal').classList.remove('open');
+        loggedIn = true;
+        document.getElementById('headerActions').style.display = 'flex';
+        document.getElementById('loginRequired').style.display = 'none';
+        document.getElementById('mainContent').classList.add('visible');
+        if (data.user) document.getElementById('headerUserName').textContent = data.user;
+        loadProjects();
+        loadCategoriesForChips();
+        if (pendingEditProjectId) {
+          openEditModal(pendingEditProjectId);
+          pendingEditProjectId = null;
+        }
+      } catch (_) {
+        errEl.textContent = '네트워크 오류';
+        errEl.style.display = 'block';
+      }
+    }
+    window.doLogin = doLogin;
+
+    function fillEditModalSelects() {
+      const catSel = document.getElementById('editCategoryId');
+      if (!catSel) return;
+      catSel.innerHTML = '<option value="">선택 안 함</option>' + categories.map((c) => '<option value="' + c.id + '">' + escapeHtml(c.name) + '</option>').join('') + '<option value="__add_cat__">+ 카테고리 추가</option>';
+    }
+
+    async function refillEditModalSelectsIfOpen() {
+      if (!document.getElementById('editModal').classList.contains('open')) return;
+      try {
+        const r1 = await fetch(API + '/api/categories', fetchOpts());
+        if (r1.ok) categories = await r1.json();
+      } catch (_) {}
+      fillEditModalSelects();
+    }
+
+    async function openEditModal(projectId) {
+      document.getElementById('editModalTitle').textContent = '프로젝트 수정';
+      document.getElementById('editError').style.display = 'none';
+      document.getElementById('editProjectId').value = projectId;
+      if (categories.length === 0) {
+        try {
+          const r = await fetch(API + '/api/categories', fetchOpts());
+          if (r.ok) categories = await r.json();
+        } catch (_) {}
+      }
+      fillEditModalSelects();
+      const catSel = document.getElementById('editCategoryId');
+      try {
+        const r = await fetch(API + '/api/projects/' + projectId, fetchOpts());
+        if (!r.ok) throw new Error('조회 실패');
+        const data = await r.json();
+        document.getElementById('editName').value = data.name || '';
+        document.getElementById('editVersion').value = data.version || '';
+        document.getElementById('editDesc').value = data.desc || '';
+        document.getElementById('editTech').value = data.tech || '';
+        document.getElementById('editUrl').value = data.url || '';
+        document.getElementById('editGithubUrl').value = data.github_url || '';
+        document.getElementById('editEtc').value = data.etc || '';
+        document.getElementById('editLoginId').value = data.login_id || '';
+        document.getElementById('editLoginPw').value = data.login_pw || '';
+        document.getElementById('editStatus').checked = data.status !== false;
+        document.getElementById('editBuild').checked = data.build !== false;
+        catSel.value = data.category_id || '';
+        document.getElementById('editModal').classList.add('open');
+      } catch (_) {
+        document.getElementById('editError').textContent = '프로젝트를 불러올 수 없습니다.';
+        document.getElementById('editError').style.display = 'block';
+      }
+    }
+
+    function filterAndRender() {
+      const q = document.getElementById('search').value.trim().toLowerCase();
+      const filtered = q
+        ? projects.filter(p =>
+            (p.name || '').toLowerCase().includes(q) ||
+            (p.desc || '').toLowerCase().includes(q) ||
+            (p.tech || '').toLowerCase().includes(q))
+        : projects;
+      renderRows(filtered);
+    }
+
+    function renderRows(data) {
+      const tbody = document.getElementById('tbody');
+      const categoryName = (cid) => {
+        if (!cid) return '-';
+        const c = (categories || []).find((x) => String(x.id) === String(cid));
+        return c ? (c.name || '-') : '-';
+      };
+      const idVal = (v) => (v == null || v === '' ? '-' : v);
+      tbody.innerHTML = data.map(p => `
+        <tr>
+          <td class="status" style="text-align:center"><span class="status-dot ${p.status ? '' : 'off'}"></span></td>
+          <td>${escapeHtml(categoryName(p.category_id))}</td>
+          <td>${escapeHtml(p.name || '-')}</td>
+          <td>${escapeHtml(p.version || '-')}</td>
+          <td>${escapeHtml(p.desc || '-')}</td>
+          <td>${escapeHtml(p.tech || '-')}</td>
+          <td>${p.url && p.url !== '-' ? `<a href="${escapeHtml(p.url)}" class="url-link" target="_blank" rel="noopener">${escapeHtml(p.url)}</a>` : '-'}</td>
+          <td>${escapeHtml((p.etc && p.etc !== '-') ? p.etc : '-')}</td>
+          <td>
+            <div class="info-copy-wrap">
+              <div class="info-copy info-copy-id" data-value="${escapeHtml(idVal(p.id))}" title="클릭하면 ID만 복사"><span class="label">ID:</span> ${escapeHtml(idVal(p.id))}</div>
+              <div class="info-copy info-copy-pw" data-value="${escapeHtml(idVal(p.pw))}" title="클릭하면 비번만 복사"><span class="label">PW:</span> ${escapeHtml(idVal(p.pw))}</div>
+            </div>
+          </td>
+          <td style="text-align:center">${p.build ? '<span class="build-label"><span class="status-dot"></span>빌드</span>' : '-'}</td>
+          <td><a href="#" class="btn-detail" data-project-id="${escapeHtml(String(p.projectId))}">상세</a></td>
+        </tr>
+      `).join('');
+
+      document.querySelectorAll('.info-copy-id, .info-copy-pw').forEach(el => {
+        const originalHtml = el.innerHTML;
+        el.addEventListener('click', () => {
+          const value = el.dataset.value || '';
+          if (value === '-') return;
+          navigator.clipboard.writeText(value).then(() => {
+            el.textContent = '복사됨';
+            el.style.color = 'var(--status-on)';
+            setTimeout(() => { el.innerHTML = originalHtml; el.style.color = ''; }, 800);
+          });
+        });
+      });
+
+      document.querySelectorAll('.btn-detail').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+          e.preventDefault();
+          const projectId = btn.dataset.projectId;
+          const isLoggedIn = await checkAuth();
+          if (!isLoggedIn) {
+            openLoginModal(projectId);
+            return;
+          }
+          openEditModal(projectId);
+        });
+      });
+    }
+
+    function escapeHtml(s) {
+      if (s == null) return '';
+      const div = document.createElement('div');
+      div.textContent = s;
+      return div.innerHTML;
+    }
+
+    document.getElementById('search').addEventListener('input', filterAndRender);
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      loadProjects();
+      loadCategoriesForChips();
+    });
+
+    document.getElementById('filterCategory')?.addEventListener('change', async function () {
+      if (this.value === '__add_cat__') {
+        this.value = '';
+        const ok = await checkAuth();
+        if (!ok) { openLoginModal(); return; }
+        openCategoryModal(false);
+        return;
+      }
+      selectedCategoryId = this.value || '';
+      loadProjects();
+      const wrap = document.getElementById('categoryChips');
+      if (wrap) wrap.querySelectorAll('.chip').forEach((c) => {
+        c.classList.toggle('active', c.dataset.categoryId === selectedCategoryId);
+      });
+    });
+    document.getElementById('categoryManageOpenBtn')?.addEventListener('click', async () => {
+      const ok = await checkAuth();
+      if (!ok) { openLoginModal(); return; }
+      await loadCategories();
+      document.getElementById('categoryManageModal').classList.add('open');
+    });
+    document.getElementById('categoryManageCloseBtn').addEventListener('click', () => {
+      document.getElementById('categoryManageModal').classList.remove('open');
+      loadCategoriesForChips();
+    });
+    document.getElementById('categoryManageModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        document.getElementById('categoryManageModal').classList.remove('open');
+        loadCategoriesForChips();
+      }
+    });
+    document.getElementById('projectAddBtn')?.addEventListener('click', (e) => { e.preventDefault(); openProjectAdd(); });
+
+    document.getElementById('editCategoryId').addEventListener('change', async function () {
+      if (this.value !== '__add_cat__') return;
+      this.value = '';
+      const ok = await checkAuth();
+      if (!ok) { openLoginModal(); return; }
+      openCategoryModal(false);
+    });
+
+    async function loadCategories() {
+      try {
+        const r = await fetch(API + '/api/categories', fetchOpts());
+        if (r.ok) categories = await r.json();
+      } catch (_) {
+        categories = [];
+      }
+      filterAndRenderCategories();
+    }
+    function filterAndRenderCategories() {
+      const q = (document.getElementById('categorySearch').value || '').trim().toLowerCase();
+      const list = q ? categories.filter((c) => (c.name || '').toLowerCase().includes(q) || (c.description || '').toLowerCase().includes(q)) : categories;
+      const tbody = document.getElementById('categoryTbody');
+      tbody.innerHTML = list.map((c) => `
+        <tr>
+          <td>${c.id}</td>
+          <td>${escapeHtml(c.name)}</td>
+          <td>${escapeHtml(c.description)}</td>
+          <td>${c.sort_order}</td>
+          <td style="white-space:nowrap;">
+            <button type="button" class="btn btn-primary btn-sm category-edit" data-id="${c.id}">수정</button>
+            <button type="button" class="btn btn-secondary btn-sm category-del" data-id="${c.id}" style="margin-left:0.35rem;">삭제</button>
+          </td>
+        </tr>
+      `).join('');
+      tbody.querySelectorAll('.category-edit').forEach((btn) => {
+        btn.addEventListener('click', () => openCategoryEdit(btn.dataset.id));
+      });
+      tbody.querySelectorAll('.category-del').forEach((btn) => {
+        btn.addEventListener('click', () => deleteCategory(btn.dataset.id));
+      });
+    }
+    document.getElementById('categorySearch').addEventListener('input', filterAndRenderCategories);
+
+    function openCategoryModal(isEdit) {
+      document.getElementById('categoryModalTitle').textContent = isEdit ? '카테고리 수정' : '카테고리 추가';
+      document.getElementById('categoryEditId').value = '';
+      document.getElementById('categoryName').value = '';
+      document.getElementById('categoryDesc').value = '';
+      document.getElementById('categorySort').value = '0';
+      document.getElementById('categoryError').style.display = 'none';
+      document.getElementById('categoryModal').classList.add('open');
+    }
+    async function openCategoryEdit(id) {
+      const ok = await checkAuth();
+      if (!ok) {
+        openLoginModal();
+        return;
+      }
+      try {
+        const r = await fetch(API + '/api/categories/' + id, fetchOpts());
+        if (!r.ok) throw new Error();
+        const d = await r.json();
+        document.getElementById('categoryModalTitle').textContent = '카테고리 수정';
+        document.getElementById('categoryEditId').value = d.id;
+        document.getElementById('categoryName').value = d.name || '';
+        document.getElementById('categoryDesc').value = d.description || '';
+        document.getElementById('categorySort').value = d.sort_order != null ? d.sort_order : 0;
+        document.getElementById('categoryError').style.display = 'none';
+        document.getElementById('categoryModal').classList.add('open');
+      } catch (_) {
+        alert('카테고리를 불러올 수 없습니다.');
+      }
+    }
+    document.getElementById('categoryAddBtn').addEventListener('click', async () => {
+      const ok = await checkAuth();
+      if (!ok) {
+        openLoginModal();
+        return;
+      }
+      openCategoryModal(false);
+    });
+    document.getElementById('categoryCancelBtn').addEventListener('click', () => {
+      document.getElementById('categoryModal').classList.remove('open');
+      refillEditModalSelectsIfOpen();
+    });
+    document.getElementById('categoryModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) {
+        document.getElementById('categoryModal').classList.remove('open');
+        refillEditModalSelectsIfOpen();
+      }
+    });
+    async function saveCategoryEdit() {
+      const errEl = document.getElementById('categoryError');
+      errEl.style.display = 'none';
+      const editId = document.getElementById('categoryEditId').value;
+      const payload = {
+        name: document.getElementById('categoryName').value.trim(),
+        description: document.getElementById('categoryDesc').value.trim(),
+        sort_order: parseInt(document.getElementById('categorySort').value, 10) || 0,
+      };
+      if (!payload.name) {
+        errEl.textContent = '카테고리명을 입력하세요.';
+        errEl.style.display = 'block';
+        return;
+      }
+      try {
+        const url = editId ? API + '/api/categories/' + editId : API + '/api/categories';
+        const method = editId ? 'PUT' : 'POST';
+        const r = await fetch(url, { ...fetchOpts(), method, body: JSON.stringify(payload) });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          errEl.textContent = data.error || '저장 실패';
+          errEl.style.display = 'block';
+          return;
+        }
+        document.getElementById('categoryModal').classList.remove('open');
+        await loadCategories();
+        if (!editId && data.id) {
+          selectedCategoryId = String(data.id);
+        }
+        renderCategoryChips();
+        await loadProjects();
+        refillEditModalSelectsIfOpen();
+        await fillFilterDropdowns();
+      } catch (_) {
+        errEl.textContent = '네트워크 오류';
+        errEl.style.display = 'block';
+      }
+    }
+    window.saveCategoryEdit = saveCategoryEdit;
+    async function deleteCategory(id) {
+      if (!(await checkAuth())) { openLoginModal(); return; }
+      if (!confirm('이 카테고리를 삭제할까요?')) return;
+      try {
+        const r = await fetch(API + '/api/categories/' + id, { ...fetchOpts(), method: 'DELETE' });
+        if (r.ok) { loadCategories(); renderCategoryChips(); loadProjects(); }
+        else alert('삭제 실패');
+      } catch (_) {
+        alert('네트워크 오류');
+      }
+    }
+
+    document.getElementById('loginBtn')?.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
+
+    document.getElementById('logoutBtn').addEventListener('click', async () => {
+      await fetch(API + '/api/logout', { ...fetchOpts(), method: 'POST' });
+      loggedIn = false;
+      document.getElementById('headerActions').style.display = 'none';
+      document.getElementById('loginRequired').style.display = 'flex';
+      document.getElementById('mainContent').classList.remove('visible');
+    });
+
+    document.getElementById('showLoginBtn')?.addEventListener('click', (e) => { e.preventDefault(); openLoginModal(); });
+
+    document.getElementById('editCancelBtn').addEventListener('click', () => {
+      document.getElementById('editModal').classList.remove('open');
+    });
+    document.getElementById('editModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) document.getElementById('editModal').classList.remove('open');
+    });
+
+    async function saveProjectEdit() {
+      const projectId = document.getElementById('editProjectId').value;
+      const errEl = document.getElementById('editError');
+      errEl.style.display = 'none';
+      const catVal = document.getElementById('editCategoryId').value;
+      const rawVersion = document.getElementById('editVersion').value.trim();
+      const rawTech = document.getElementById('editTech').value.trim();
+      const payload = {
+        name: document.getElementById('editName').value.trim(),
+        version: rawVersion || 'v1.0',
+        desc: document.getElementById('editDesc').value.trim(),
+        tech: rawTech || 'React, Node',
+        url: document.getElementById('editUrl').value.trim(),
+        github_url: document.getElementById('editGithubUrl').value.trim(),
+        etc: document.getElementById('editEtc').value.trim(),
+        login_id: document.getElementById('editLoginId').value.trim(),
+        login_pw: document.getElementById('editLoginPw').value,
+        status: document.getElementById('editStatus').checked,
+        build: document.getElementById('editBuild').checked,
+        category_id: (catVal && catVal !== '__add_cat__') ? catVal : null,
+      };
+      const isAdd = !projectId;
+      if (isAdd && !payload.name) {
+        errEl.textContent = '프로젝트명을 입력하세요.';
+        errEl.style.display = 'block';
+        return;
+      }
+      try {
+        const url = isAdd ? API + '/api/projects' : API + '/api/projects/' + projectId;
+        const method = isAdd ? 'POST' : 'PUT';
+        const r = await fetch(url, {
+          ...fetchOpts(),
+          method,
+          body: JSON.stringify(payload),
+        });
+        const data = await r.json().catch(() => ({}));
+        if (!r.ok) {
+          errEl.textContent = data.error || ('저장 실패 (' + r.status + ')');
+          errEl.style.display = 'block';
+          if (r.status === 401) openLoginModal();
+          return;
+        }
+        document.getElementById('editModal').classList.remove('open');
+        await loadProjects();
+      } catch (err) {
+        errEl.textContent = '네트워크 오류: ' + (err && err.message ? err.message : '연결 실패');
+        errEl.style.display = 'block';
+      }
+    }
+    window.saveProjectEdit = saveProjectEdit;
+
+    document.getElementById('loginModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) document.getElementById('loginModal').classList.remove('open');
+    });
+
+    document.getElementById('loginToRegister')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openRegisterFromLogin();
+    });
+    document.getElementById('loginToForgot')?.addEventListener('click', (e) => {
+      e.preventDefault();
+      openForgotFromLogin();
+    });
+
+    document.getElementById('registerCancelBtn')?.addEventListener('click', (e) => { e.preventDefault(); closeRegisterModal(); });
+    document.getElementById('registerModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeRegisterModal();
+    });
+    document.getElementById('registerBtn')?.addEventListener('click', (e) => { e.preventDefault(); doRegister(); });
+
+    document.getElementById('forgotCancelBtn')?.addEventListener('click', (e) => { e.preventDefault(); closeForgotModal(); });
+    document.getElementById('forgotModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeForgotModal();
+    });
+    document.getElementById('forgotSendBtn')?.addEventListener('click', (e) => { e.preventDefault(); sendForgotPassword(); });
+    document.body.addEventListener('click', function(e) {
+      if (e.target && (e.target.id === 'forgotSendBtn' || (e.target.closest && e.target.closest('#forgotSendBtn')))) {
+        e.preventDefault();
+        e.stopPropagation();
+        sendForgotPassword();
+      }
+    }, true);
+
+    function updateSystemStatus() {
+      document.getElementById('cpuVal').textContent = (Math.random() * 10 + 1).toFixed(2) + '%';
+      const used = Math.floor(12000 + Math.random() * 1500);
+      const total = 15834;
+      const pct = ((used / total) * 100).toFixed(2);
+      document.getElementById('memPct').textContent = pct + '%';
+      document.getElementById('memUsed').textContent = used;
+      document.getElementById('memTotal').textContent = total;
+      document.getElementById('lastUpdate').textContent = '방금 전';
+    }
+    updateSystemStatus();
+    setInterval(updateSystemStatus, 60000);
+
+    checkAuth().then((isLoggedIn) => {
+      if (isLoggedIn) {
+        loadProjects();
+        loadCategoriesForChips();
+      } else {
+        openLoginModal();
+      }
+    });
+  </script>
+</body>
+</html>

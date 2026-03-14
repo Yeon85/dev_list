@@ -1,0 +1,39 @@
+# iwinv / 데모 서비스 관리 - 도커로 실행
+version: "3.8"
+
+services:
+  app:
+    build: .
+    container_name: iwinv-app
+    ports:
+      - "3000:3000"
+    environment:
+      PORT: 3000
+      DATABASE_URL: mysql://devlist:devlist_pw@db:3306/devlist
+      SESSION_SECRET: ${SESSION_SECRET:-iwinv-secret-change-me}
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+  db:
+    image: mysql:8.0
+    container_name: iwinv-db
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: devlist
+      MYSQL_USER: devlist
+      MYSQL_PASSWORD: devlist_pw
+    ports:
+      - "3306:3306"
+    volumes:
+      - iwinv_mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-proot"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+volumes:
+  iwinv_mysql_data:
