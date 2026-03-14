@@ -1,5 +1,8 @@
 require('dotenv').config();
 const path = require('path');
+const fs = require('fs');
+const http = require('http');
+const https = require('https');
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
@@ -12,14 +15,18 @@ const app = express();
 const PORT = process.env.PORT || 2001;
 const SALT_ROUNDS = 10;
 
+// DATABASE_URL 은 하나로 통일할 것. 앱과 DB가 같은 서버면 host 는 127.0.0.1 로 두면 연결 안정적.
 function parseDatabaseUrl(url) {
   if (!url || !url.startsWith('mysql://')) throw new Error('Invalid DATABASE_URL');
   const match = url.match(/^mysql:\/\/([^:]+):([^@]+)@([^:]+):(\d+)\/(.+)$/);
   if (!match) throw new Error('DATABASE_URL format: mysql://user:pass@host:port/db');
+  let host = match[3];
+  // 같은 서버에서 돌 때 공인 IP 대신 127.0.0.1 쓰면 타임아웃 방지 (선택)
+  if (process.env.DATABASE_USE_LOCALHOST === '1') host = '127.0.0.1';
   return {
     user: match[1],
     password: match[2],
-    host: match[3],
+    host,
     port: parseInt(match[4], 10),
     database: match[5],
   };
@@ -179,6 +186,8 @@ async function initTable(p) {
   } catch (_) {}
 }
 
+const SMTP_TIMEOUT_MS = 10000; // 10초 안에 연결/발송 안 되면 실패
+
 function getTransporter() {
   const host = process.env.SMTP_HOST;
   if (!host) return null;
@@ -191,6 +200,9 @@ function getTransporter() {
       user: process.env.SMTP_USER,
       pass: pass || process.env.SMTP_PASSWORD,
     },
+    connectionTimeout: SMTP_TIMEOUT_MS,
+    greetingTimeout: SMTP_TIMEOUT_MS,
+    socketTimeout: SMTP_TIMEOUT_MS,
   });
 }
 
@@ -200,14 +212,20 @@ async function sendMail(to, subject, html) {
     console.warn('SMTP not configured, mail not sent');
     return;
   }
-  await transport.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER,
-    to,
-    subject,
-    html,
-  });
+  const send = () =>
+    transport.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to,
+      subject,
+      html,
+    });
+  const timeout = new Promise((_, reject) =>
+    setTimeout(() => reject(new Error('SMTP_TIMEOUT')), SMTP_TIMEOUT_MS)
+  );
+  await Promise.race([send(), timeout]);
 }
 
+app.set('trust proxy', 1);
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json());
 app.use(
@@ -249,7 +267,11 @@ app.post('/api/login', async (req, res) => {
     res.json({ ok: true, user: user.email });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    var msg = e.message || '오류가 발생했습니다.';
+    if (/ETIMEDOUT|ECONNREFUSED|ENOTFOUND|EAI_AGAIN|getaddrinfo|connect/i.test(msg)) {
+      msg = 'DB 연결에 실패했습니다. (Docker 사용 시 db 컨테이너가 떠 있는지, 직접 실행 시 .env의 DATABASE_URL host를 127.0.0.1 로 두었는지 확인하세요.)';
+    }
+    res.status(500).json({ error: msg });
   }
 });
 
@@ -259,12 +281,12 @@ app.post('/api/logout', (req, res) => {
   res.json({ ok: true });
 });
 
-// 로그인 여부
+// 로그인 여부 (비로그인 시 200 + user: null → 콘솔에 401 안 뜸)
 app.get('/api/me', (req, res) => {
   if (req.session && req.session.user) {
     return res.json({ user: req.session.user });
   }
-  res.status(401).json({ error: 'Not logged in' });
+  res.json({ user: null });
 });
 
 // 회원가입
@@ -290,18 +312,31 @@ app.post('/api/register', async (req, res) => {
 // 비밀번호 찾기 (이메일로 재설정 링크 발송)
 app.post('/api/forgot-password', async (req, res) => {
   try {
+    if (!getTransporter()) {
+      return res.status(503).json({ error: '메일 발송이 설정되지 않았습니다. 관리자에게 문의하세요.' });
+    }
     const { email } = req.body || {};
     const em = (email || '').trim().toLowerCase();
     if (!em) {
       return res.status(400).json({ error: '이메일을 입력하세요.' });
     }
-    const p = await getPool();
+    let p;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        p = await getPool();
+        break;
+      } catch (poolErr) {
+        if (attempt === 2) throw poolErr;
+        await new Promise(r => setTimeout(r, 500));
+      }
+    }
     const [rows] = await p.execute('SELECT id, email FROM users WHERE email = ?', [em]);
     if (rows.length) {
       const token = crypto.randomBytes(32).toString('hex');
       const expires = new Date(Date.now() + 60 * 60 * 1000); // 1시간
       await p.execute('UPDATE users SET reset_token = ?, reset_expires = ? WHERE id = ?', [token, expires, rows[0].id]);
-      const baseUrl = process.env.BASE_URL || (req.protocol + '://' + req.get('host'));
+      // 항상 접속한 주소로 링크 생성 (IP / 도메인 / localhost 자동)
+      const baseUrl = req.protocol + '://' + req.get('host');
       const resetUrl = baseUrl + '/reset-password.html?token=' + token;
       try {
         await sendMail(
@@ -310,13 +345,29 @@ app.post('/api/forgot-password', async (req, res) => {
           `<p>비밀번호 재설정을 요청하셨습니다.</p><p>아래 링크를 클릭하여 새 비밀번호를 설정하세요. (1시간 유효)</p><p><a href="${resetUrl}">${resetUrl}</a></p><p>요청하지 않으셨다면 이 메일을 무시하세요.</p>`
         );
       } catch (mailErr) {
-        console.error('비밀번호 재설정 메일 발송 실패:', mailErr);
+        const mailMsg = (mailErr && mailErr.message || '') + (mailErr && mailErr.code || '');
+        const isSmtpNetwork = /SMTP_TIMEOUT|ETIMEOUT|EDNS|queryA|getaddrinfo|EAI_AGAIN|ECONNREFUSED|smtp\.gmail\.com/i.test(mailMsg);
+        if (isSmtpNetwork) {
+          console.warn('비밀번호 재설정 메일 발송 실패 (SMTP/네트워크):', mailErr.message || mailErr.code);
+        } else {
+          console.error('비밀번호 재설정 메일 발송 실패:', mailErr);
+        }
+        const userMsg = /SMTP_TIMEOUT|ETIMEOUT/i.test(mailMsg)
+          ? '메일 서버 연결 시간이 초과되었습니다. 로컬/서버 방화벽·DNS 또는 Gmail SMTP 접속이 막혀 있을 수 있습니다.'
+          : isSmtpNetwork
+            ? '메일 서버(smtp.gmail.com) 연결이 되지 않습니다. 방화벽·DNS 또는 SMTP 설정을 확인하세요.'
+            : '메일 발송에 실패했습니다. 잠시 후 다시 시도하세요.';
+        return res.status(503).json({ error: userMsg });
       }
     }
     res.json({ ok: true, message: '등록된 이메일이 있다면 재설정 링크를 발송했습니다.' });
   } catch (e) {
     console.error(e);
-    res.status(500).json({ error: e.message });
+    const msg = (e && e.message || '').toLowerCase();
+    const isNetwork = /getaddrinfo|eai_again|econnrefused|enotfound|etimedout/.test(msg);
+    res.status(500).json({
+      error: isNetwork ? '일시적인 연결 오류입니다. 잠시 후 다시 시도해 주세요.' : (e.message || '처리 중 오류가 발생했습니다.')
+    });
   }
 });
 
@@ -596,6 +647,20 @@ app.use('/vendor/jquery', express.static(path.join(__dirname, 'node_modules/jque
 app.use('/vendor/summernote', express.static(path.join(__dirname, 'node_modules/summernote/dist')));
 app.use(express.static(__dirname));
 
-app.listen(PORT, () => {
-  console.log(`서버 http://localhost:${PORT} 에서 실행 중 (기본 계정: admin / 111111, 회원가입 가능)`);
-});
+const certPath = process.env.SSL_CERT_PATH || path.join(__dirname, 'nginx', 'ssl', 'cert.pem');
+const keyPath = process.env.SSL_KEY_PATH || path.join(__dirname, 'nginx', 'ssl', 'key.pem');
+const useHttps = process.env.SSL_ENABLE === '1' && fs.existsSync(certPath) && fs.existsSync(keyPath);
+
+if (useHttps) {
+  const server = https.createServer(
+    { cert: fs.readFileSync(certPath), key: fs.readFileSync(keyPath) },
+    app
+  );
+  server.listen(PORT, () => {
+    console.log(`서버 https://localhost:${PORT} 에서 실행 중 (SSL 사용, 기본 계정: admin / 111111, 회원가입 가능)`);
+  });
+} else {
+  http.createServer(app).listen(PORT, () => {
+    console.log(`서버 http://localhost:${PORT} 에서 실행 중 (기본 계정: admin / 111111, 회원가입 가능)`);
+  });
+}

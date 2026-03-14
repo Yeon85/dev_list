@@ -1,17 +1,40 @@
-# iwinv / 데모 서비스 관리 - 도커로 실행
+# iwinv / 데모 서비스 관리 - 도커로 실행 (nginx가 80/443, HTTPS)
+# ※ host "db" 는 Docker 내부에서만 사용. 서버에서 node로 직접 실행할 때는 .env 에 host 를 127.0.0.1 로 두세요.
 services:
   app:
     build: .
     container_name: iwinv-app
-    ports:
-      - "3000:3000"
+    expose:
+      - "3000"
     environment:
       PORT: 3000
+      # Docker 안에서는 반드시 host "db" (아래 db 서비스). 바꾸면 안 됨.
       DATABASE_URL: mysql://devlist:devlist_pw@db:3306/devlist
       SESSION_SECRET: ${SESSION_SECRET:-iwinv-secret-change-me}
+      # 비밀번호 찾기용: 공개 접속 주소 (예: https://your-domain.com)
+      BASE_URL: ${BASE_URL:-}
+      # 비밀번호 재설정 메일 발송 (없으면 비밀번호 찾기 시 오류 메시지 표시)
+      SMTP_HOST: ${SMTP_HOST:-}
+      SMTP_PORT: ${SMTP_PORT:-587}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
     depends_on:
       db:
         condition: service_healthy
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:alpine
+    container_name: iwinv-nginx
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./nginx/ssl:/etc/nginx/ssl:ro
+    depends_on:
+      - app
     restart: unless-stopped
 
   db:

@@ -1,3 +1,25 @@
+1.도커 설치 
+cd /mnt/c/dev_list   # Windows 경로라면
+docker-compose up -d --build
+
+
+
 PS C:\dev_list> npm install
 
 PS C:\dev_list> npm start
+
+서버>>
+cd /opt
+rm -rf dev_list
+git clone https://github.com/Yeon85/dev_list.git dev_list
+cd dev_list
+docker compose up -d --build
+
+
+CREATE DATABASE IF NOT EXISTS bnk;
+CREATE USER 'bnk'@'%' IDENTIFIED BY 'bnk_pw';
+GRANT ALL PRIVILEGES ON bnk.* TO 'bnk'@'%';
+FLUSH PRIVILEGES;
+EXIT;
+
+

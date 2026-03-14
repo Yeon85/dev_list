@@ -233,7 +233,23 @@
       border-bottom: 1px solid var(--border);
       font-weight: 600;
       font-size: 1.1rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 0.5rem;
     }
+    .modal .modal-header .modal-close-x {
+      margin-left: auto;
+      padding: 0.25rem 0.5rem;
+      border: none;
+      background: none;
+      font-size: 1.4rem;
+      line-height: 1;
+      color: #5d6d7e;
+      cursor: pointer;
+      border-radius: 4px;
+    }
+    .modal .modal-header .modal-close-x:hover { color: #2c3e50; background: rgba(0,0,0,0.06); }
     .modal .modal-body { padding: 1.25rem; }
     /* 노트 모달: 서머노트를 한 덩어리로 표시 */
     .note-modal .modal-body { padding: 0.75rem 1.25rem; }
@@ -501,20 +517,22 @@
   <!-- 비밀번호 찾기 모달 -->
   <div id="forgotModal" class="modal-overlay">
     <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header">비밀번호 찾기</div>
-      <div class="modal-body">
-        <p style="font-size: 0.9rem; color: #5d6d7e; margin-bottom: 1rem;">가입한 이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
-        <div class="form-group">
-          <label>이메일</label>
-          <input type="email" id="forgotEmail" placeholder="example@email.com" />
+      <form id="forgotForm" action="javascript:void(0)" method="post">
+        <div class="modal-header">비밀번호 찾기</div>
+        <div class="modal-body">
+          <p style="font-size: 0.9rem; color: #5d6d7e; margin-bottom: 1rem;">가입한 이메일을 입력하시면 비밀번호 재설정 링크를 보내드립니다.</p>
+          <div class="form-group">
+            <label>이메일</label>
+            <input type="email" id="forgotEmail" placeholder="example@email.com" required />
+          </div>
+          <p id="forgotError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+          <p id="forgotSuccess" style="color: var(--status-on); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
         </div>
-        <p id="forgotError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
-        <p id="forgotSuccess" style="color: var(--status-on); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
-      </div>
-      <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="forgotCancelBtn" onclick="window.closeForgotModal && window.closeForgotModal(); return false;">취소</button>
-        <button type="button" class="btn btn-primary" id="forgotSendBtn" onclick="window.sendForgotPassword && window.sendForgotPassword(); return false;">재설정 메일 발송</button>
-      </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="forgotCancelBtn">취소</button>
+          <button type="button" class="btn btn-primary" id="forgotSendBtn">재설정 메일 발송</button>
+        </div>
+      </form>
     </div>
   </div>
 
@@ -606,12 +624,15 @@
   <!-- 노트 팝업 (수정 모달 위에 띄움) -->
   <div id="noteModal" class="modal-overlay">
     <div class="modal" style="max-width: 640px;" onclick="event.stopPropagation()">
-      <div class="modal-header">노트</div>
+      <div class="modal-header">
+        <span>노트</span>
+        <button type="button" class="modal-close-x" id="noteModalCloseX" title="닫기" aria-label="닫기">&times;</button>
+      </div>
       <div class="modal-body" style="min-height: 260px;">
         <textarea id="notePopupText" rows="14" style="width:100%; min-height:240px; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn" onclick="var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');var m=document.getElementById('noteModal');if(t&&e)e.value=t.value||'';if(m)m.classList.remove('open');return false;">저장후닫기</button>
+        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn">저장후닫기</button>
       </div>
     </div>
   </div>
@@ -643,7 +664,10 @@
   <!-- 노트 보기/편집 팝업 (목록에서 노트 버튼 클릭 시) -->
   <div id="noteViewModal" class="modal-overlay">
     <div class="modal note-modal" style="max-width: 560px;" onclick="event.stopPropagation()">
-      <div class="modal-header">노트</div>
+      <div class="modal-header">
+        <span>노트</span>
+        <button type="button" class="modal-close-x" id="noteViewModalCloseX" title="닫기" aria-label="닫기">&times;</button>
+      </div>
       <div class="modal-body" style="max-height: 60vh; overflow: auto;">
         <textarea id="noteViewTextarea" rows="14" style="width:100%; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
       </div>
@@ -656,8 +680,8 @@
 
   <header class="header" style="display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem;">
     <div>
-      <h1>데모 서비스 관리</h1>
-      <p class="subtitle">카테고리별 데모 서비스 목록</p>
+      <h1>계정정보보 서비스 관리</h1>
+      <p class="subtitle">카테고리별 계정정보 서비스 목록</p>
     </div>
     <div class="header-actions" id="headerActions" style="display: none;">
       <a href="/" id="navListLink" style="margin-right: 0.5rem; color: rgba(255,255,255,0.9); text-decoration: none; font-size: 0.9rem;">목록</a>
@@ -670,6 +694,7 @@
   <!-- 로그인 전 안내 -->
   <div id="loginRequired">
     <p>로그인 후 이용해 주세요.</p>
+    <p id="authNetworkError" style="display:none; margin-top:0.5rem; font-size:0.9rem; color: var(--status-warn); max-width: 360px;">서버에 연결할 수 없습니다. 주소를 <strong>http://</strong> 로 열었는지(https 아님), 서버가 실행 중인지 확인하세요.</p>
     <button type="button" class="btn btn-primary" id="showLoginBtn" onclick="window.openLoginModal && window.openLoginModal(); return false;">로그인</button>
   </div>
 
@@ -701,6 +726,7 @@
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg>
       </button>
       <button type="button" class="btn btn-primary btn-sm" id="projectAddBtn" onclick="window.openProjectAdd && window.openProjectAdd(); return false;">+ 추가</button>
+      <button type="button" class="btn btn-secondary btn-sm" id="toolbarLogoutBtn" title="로그아웃">로그아웃</button>
     </div>
   </div>
 
@@ -833,19 +859,22 @@
     }
 
     async function checkAuth() {
+      var networkErr = document.getElementById('authNetworkError');
+      var headerActions = document.getElementById('headerActions');
+      var headerUserName = document.getElementById('headerUserName');
+      if (networkErr) networkErr.style.display = 'none';
       try {
         const r = await fetch(API + '/api/me', { credentials: 'include' });
-        loggedIn = r.ok;
-        document.getElementById('headerActions').style.display = loggedIn ? 'flex' : 'none';
-        if (loggedIn) {
-          const data = await r.json().catch(() => ({}));
-          if (data.user) document.getElementById('headerUserName').textContent = data.user;
-        }
+        const data = await r.json().catch(() => ({}));
+        loggedIn = !!(data && data.user);
+        if (headerActions) headerActions.style.display = loggedIn ? 'flex' : 'none';
+        if (headerUserName && loggedIn && data.user) headerUserName.textContent = data.user;
         applyRoute();
         return loggedIn;
       } catch (_) {
         loggedIn = false;
-        document.getElementById('headerActions').style.display = 'none';
+        if (headerActions) headerActions.style.display = 'none';
+        if (networkErr) networkErr.style.display = 'block';
         applyRoute();
         return false;
       }
@@ -990,11 +1019,16 @@
       document.getElementById('registerModal').classList.add('open');
     }
     function openForgotFromLogin() {
-      document.getElementById('loginModal').classList.remove('open');
-      document.getElementById('forgotError').style.display = 'none';
-      document.getElementById('forgotSuccess').style.display = 'none';
-      document.getElementById('forgotEmail').value = '';
-      document.getElementById('forgotModal').classList.add('open');
+      var loginEl = document.getElementById('loginModal');
+      var errEl = document.getElementById('forgotError');
+      var okEl = document.getElementById('forgotSuccess');
+      var emailEl = document.getElementById('forgotEmail');
+      var modalEl = document.getElementById('forgotModal');
+      if (loginEl) loginEl.classList.remove('open');
+      if (errEl) errEl.style.display = 'none';
+      if (okEl) okEl.style.display = 'none';
+      if (emailEl) emailEl.value = '';
+      if (modalEl) modalEl.classList.add('open');
     }
     window.openRegisterFromLogin = openRegisterFromLogin;
     window.openForgotFromLogin = openForgotFromLogin;
@@ -1015,35 +1049,49 @@
     let forgotSendInProgress = false;
     async function sendForgotPassword() {
       if (forgotSendInProgress) return;
-      forgotSendInProgress = true;
-      const errEl = document.getElementById('forgotError');
-      const successEl = document.getElementById('forgotSuccess');
-      const emailInput = document.getElementById('forgotEmail');
-      const email = (emailInput && emailInput.value || '').trim();
+      var errEl = document.getElementById('forgotError');
+      var successEl = document.getElementById('forgotSuccess');
+      var emailInput = document.getElementById('forgotEmail');
+      var sendBtn = document.getElementById('forgotSendBtn');
+      var email = (emailInput && emailInput.value || '').trim();
       if (errEl) errEl.style.display = 'none';
       if (successEl) successEl.style.display = 'none';
       if (!email) {
         if (errEl) { errEl.textContent = '이메일을 입력하세요.'; errEl.style.display = 'block'; }
-        forgotSendInProgress = false;
         return;
       }
+      forgotSendInProgress = true;
+      if (sendBtn) { sendBtn.disabled = true; sendBtn.textContent = '전송 중...'; }
+      var timeoutId = null;
+      var aborter = typeof AbortController !== 'undefined' ? new AbortController() : null;
       try {
-        const r = await fetch(API + '/api/forgot-password', { ...fetchOpts(), method: 'POST', body: JSON.stringify({ email }) });
-        const data = await r.json().catch(() => ({}));
+        var fetchOpt = { credentials: 'include', headers: { 'Content-Type': 'application/json' }, method: 'POST', body: JSON.stringify({ email: email }) };
+        if (aborter) fetchOpt.signal = aborter.signal;
+        timeoutId = window.setTimeout(function() {
+          if (aborter) aborter.abort();
+        }, 20000);
+        var r = await fetch(API + '/api/forgot-password', fetchOpt);
+        if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; }
+        var data = await r.json().catch(function() { return {}; });
         if (!r.ok) {
-          if (errEl) { errEl.textContent = data.error || '실패'; errEl.style.display = 'block'; }
-          forgotSendInProgress = false;
+          if (errEl) { errEl.textContent = (data && data.error) || '실패'; errEl.style.display = 'block'; }
           return;
         }
         if (errEl) errEl.style.display = 'none';
         if (successEl) {
-          successEl.textContent = data.message || '등록된 이메일이 있다면 재설정 링크를 발송했습니다. 메일을 확인하세요.';
+          successEl.textContent = (data && data.message) || '등록된 이메일이 있다면 재설정 링크를 발송했습니다. 메일을 확인하세요.';
           successEl.style.display = 'block';
         }
       } catch (e) {
-        if (errEl) { errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패'); errEl.style.display = 'block'; }
+        if (timeoutId) clearTimeout(timeoutId);
+        if (errEl) {
+          errEl.textContent = (e && e.name === 'AbortError') ? '요청 시간이 초과되었습니다. 서버 상태를 확인한 뒤 다시 시도해 주세요.' : '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
+          errEl.style.display = 'block';
+        }
+      } finally {
+        forgotSendInProgress = false;
+        if (sendBtn) { sendBtn.disabled = false; sendBtn.textContent = '재설정 메일 발송'; }
       }
-      forgotSendInProgress = false;
     }
     window.sendForgotPassword = sendForgotPassword;
 
@@ -1086,7 +1134,7 @@
           const loginErrorEl = document.getElementById('loginError');
           if (loginErrorEl) loginErrorEl.style.display = 'none';
         }
-      } catch (e) { if (errEl) { errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패'); errEl.style.display = 'block'; } }
+      } catch (e) { if (errEl) { errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.'; errEl.style.display = 'block'; } }
       registerInProgress = false;
     }
     window.doRegister = doRegister;
@@ -1141,7 +1189,11 @@
         });
         const data = await r.json().catch(() => ({}));
         if (!r.ok) {
-          errEl.textContent = data.error || '로그인 실패';
+          var msg = data.error || '로그인 실패';
+          if (msg.indexOf('ETIMEDOUT') !== -1 || msg.indexOf('ECONNREFUSED') !== -1 || msg.indexOf('ENOTFOUND') !== -1 || msg.indexOf('EAI_AGAIN') !== -1 || msg.indexOf('getaddrinfo') !== -1) {
+            msg = 'DB 연결에 실패했습니다. Docker 사용 시 db 컨테이너가 떠 있는지, 서버에서 node로 직접 실행 시 .env의 DATABASE_URL host를 127.0.0.1 로 두었는지 확인하세요.';
+          }
+          errEl.textContent = msg;
           errEl.style.display = 'block';
           return;
         }
@@ -1156,7 +1208,7 @@
           pendingEditProjectId = null;
         }
       } catch (e) {
-        errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패');
+        errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
         errEl.style.display = 'block';
       }
     }
@@ -1456,7 +1508,7 @@
         refillEditModalSelectsIfOpen();
         await fillFilterDropdowns();
       } catch (e) {
-        errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패');
+        errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
         errEl.style.display = 'block';
       }
     }
@@ -1469,19 +1521,29 @@
         if (r.ok) { loadCategories(); renderCategoryChips(); loadProjects(); }
         else alert('삭제 실패');
       } catch (e) {
-        alert('네트워크 오류: ' + (e && e.message ? e.message : '연결 실패'));
+        alert('서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.');
       }
     }
 
     document.getElementById('loginBtn')?.addEventListener('click', (e) => { e.preventDefault(); doLogin(); });
 
-    document.getElementById('logoutBtn').addEventListener('click', async () => {
+    async function doLogout() {
       await fetch(API + '/api/logout', { ...fetchOpts(), method: 'POST' });
       loggedIn = false;
       document.getElementById('headerActions').style.display = 'none';
       document.getElementById('loginRequired').style.display = 'flex';
-      document.getElementById('mainContent').classList.remove('visible');
-    });
+      const mainContent = document.getElementById('mainContent');
+      mainContent.classList.remove('visible');
+      mainContent.style.display = 'none';
+      const notesPage = document.getElementById('notesPage');
+      if (notesPage) {
+        notesPage.classList.remove('visible');
+        notesPage.style.display = 'none';
+      }
+    }
+    document.getElementById('logoutBtn').addEventListener('click', doLogout);
+    var toolbarLogout = document.getElementById('toolbarLogoutBtn');
+    if (toolbarLogout) toolbarLogout.addEventListener('click', doLogout);
 
     document.getElementById('showLoginBtn')?.addEventListener('click', (e) => { e.preventDefault(); openLoginModal(); });
 
@@ -1516,17 +1578,27 @@
     var editNoteBtnEl = document.getElementById('editNoteBtn');
     if (editNoteBtnEl) editNoteBtnEl.addEventListener('click', function(e) { e.preventDefault(); var m=document.getElementById('noteModal');var t=document.getElementById('notePopupText');var el=document.getElementById('editNote');if(m)m.classList.add('open');if(t&&el){t.value=el.value||'';t.focus();} });
     var notePopupCloseBtnEl = document.getElementById('notePopupCloseBtn');
-    if (notePopupCloseBtnEl) notePopupCloseBtnEl.addEventListener('click', function() { var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');var m=document.getElementById('noteModal');if(t&&e)e.value=t.value||'';if(m)m.classList.remove('open'); });
+    function closeNoteModalWithSave() {
+      var t = document.getElementById('notePopupText');
+      var e = document.getElementById('editNote');
+      var m = document.getElementById('noteModal');
+      if (t && e) e.value = t.value || '';
+      if (m) m.classList.remove('open');
+    }
+    if (notePopupCloseBtnEl) notePopupCloseBtnEl.addEventListener('click', closeNoteModalWithSave);
+    document.getElementById('noteModalCloseX')?.addEventListener('click', closeNoteModalWithSave);
     var noteModalEl = document.getElementById('noteModal');
-    if (noteModalEl) noteModalEl.addEventListener('click', function(ev) { if (ev.target === noteModalEl) { var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(t&&e)e.value=t.value||'';noteModalEl.classList.remove('open'); } });
+    if (noteModalEl) noteModalEl.addEventListener('click', function(ev) { if (ev.target === noteModalEl) closeNoteModalWithSave(); });
     var notePanelCloseBtn = document.getElementById('notePanelCloseBtn');
     if (notePanelCloseBtn) notePanelCloseBtn.addEventListener('click', closeNotePanel);
 
-    document.getElementById('noteViewCloseBtn').addEventListener('click', () => {
+    function closeNoteViewModal() {
       document.getElementById('noteViewModal').classList.remove('open');
-    });
+    }
+    document.getElementById('noteViewCloseBtn').addEventListener('click', closeNoteViewModal);
+    document.getElementById('noteViewModalCloseX')?.addEventListener('click', closeNoteViewModal);
     document.getElementById('noteViewModal').addEventListener('click', (e) => {
-      if (e.target === e.currentTarget) document.getElementById('noteViewModal').classList.remove('open');
+      if (e.target === e.currentTarget) closeNoteViewModal();
     });
     document.getElementById('noteViewSaveBtn').addEventListener('click', async () => {
       const modal = document.getElementById('noteViewModal');
@@ -1625,7 +1697,7 @@
         closeNotesPanel();
         await loadProjects();
       } catch (e) {
-        errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패');
+        errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
         errEl.style.display = 'block';
       }
     }
@@ -1687,7 +1759,7 @@
         document.getElementById('editModal').classList.remove('open');
         await loadProjects();
       } catch (err) {
-        errEl.textContent = '네트워크 오류: ' + (err && err.message ? err.message : '연결 실패');
+        errEl.textContent = '서버에 연결할 수 없습니다. 잠시 후 다시 시도해 주세요.';
         errEl.style.display = 'block';
       }
     }
@@ -1716,12 +1788,21 @@
     document.getElementById('forgotModal').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeForgotModal();
     });
-    document.getElementById('forgotSendBtn')?.addEventListener('click', (e) => { e.preventDefault(); sendForgotPassword(); });
+    document.getElementById('forgotForm')?.addEventListener('submit', function(e) {
+      e.preventDefault();
+      sendForgotPassword();
+    });
+    document.getElementById('forgotSendBtn')?.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+      sendForgotPassword();
+    });
     document.body.addEventListener('click', function(e) {
-      if (e.target && (e.target.id === 'forgotSendBtn' || (e.target.closest && e.target.closest('#forgotSendBtn')))) {
+      var btn = e.target && (e.target.id === 'forgotSendBtn' ? e.target : (e.target.closest && e.target.closest('#forgotSendBtn')));
+      if (btn) {
         e.preventDefault();
         e.stopPropagation();
-        sendForgotPassword();
+        if (typeof sendForgotPassword === 'function') sendForgotPassword();
       }
     }, true);
 

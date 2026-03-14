@@ -65,6 +65,8 @@ ssh root@IWNV서버IP
 
 ```bash
 cd /opt/dev_list
+# HTTPS 사용 시: 인증서 없으면 먼저 1회 생성
+[ ! -f nginx/ssl/cert.pem ] && chmod +x scripts/gen-selfsigned-cert.sh && ./scripts/gen-selfsigned-cert.sh
 docker compose up -d --build
 ```
 
@@ -162,10 +164,15 @@ Windows에서 `scp`가 없다고 나오면:
 
 ```bash
 cd /opt/dev_list
+# HTTPS용 자체 서명 인증서 없으면 1회 생성
+[ ! -f nginx/ssl/cert.pem ] && chmod +x scripts/gen-selfsigned-cert.sh && ./scripts/gen-selfsigned-cert.sh
 docker compose up -d --build
 ```
 
-끝. 접속 주소: **http://IWNV서버IP:3000**
+끝. 접속 주소:
+- **https://IWNV서버IP** (권장, 80은 자동으로 443으로 리다이렉트)
+- 예: https://115.68.229.141  
+(자체 서명 인증서라 브라우저에서 "안전하지 않음" 경고가 뜨면 "고급" → "접속"으로 진행하면 됨)
 
 ### Docker 없을 때 (Node만)
 
@@ -177,8 +184,9 @@ npm install --production
 `.env` 만들기 (nano 또는 vi):
 
 ```bash
+# DB는 하나로 통일하세요. 앱과 MySQL이 같은 서버면 반드시 127.0.0.1 사용 (공인 IP 쓰면 ETIMEDOUT 나기 쉬움)
 echo 'PORT=3000
-DATABASE_URL=mysql://유저:비번@localhost:3306/DB이름
+DATABASE_URL=mysql://유저:비번@127.0.0.1:3306/DB이름
 SESSION_SECRET=아무랜덤문자' > .env
 ```
 
@@ -229,9 +237,50 @@ sudo systemctl start dev_list
 
 ---
 
+## HTTPS 사용 (ERR_SSL_PROTOCOL_ERROR 해결)
+
+이제 배포 시 **nginx**가 80/443 포트를 쓰고, **https://서버IP** 로 접속합니다.
+
+- **자체 서명 인증서**를 쓰므로 브라우저에 "연결이 비공개가 아님" 경고가 뜰 수 있음 → **고급** → **접속(또는 예외 추가)** 로 진행하면 됨.
+- 인증서가 없으면 nginx가 기동하지 않음. **최초 1회** 서버에서:
+  ```bash
+  cd /opt/dev_list
+  chmod +x scripts/gen-selfsigned-cert.sh
+  ./scripts/gen-selfsigned-cert.sh
+  docker compose up -d --build
+  ```
+- **도메인**이 있으면 나중에 Let's Encrypt(certbot)로 교체 가능.
+
+**Docker 없이 node로 직접 실행하면서 HTTPS를 쓰려면**: 인증서 생성 후 `.env`에 `SSL_ENABLE=1`을 넣고 `node server.js`를 실행하면 됩니다. (인증서 경로는 기본값 `nginx/ssl/cert.pem`, `nginx/ssl/key.pem`)
+
+---
+
+## 비밀번호 찾기 (재설정 메일) 설정
+
+비밀번호 찾기 시 이메일로 재설정 링크를 보내려면 **SMTP**와 **BASE_URL**을 설정해야 합니다.
+
+- **BASE_URL**: 사용자가 접속하는 공개 주소 (예: `https://your-domain.com`). 설정하지 않으면 프록시 뒤에서 링크가 잘못될 수 있음.
+- **SMTP**: 메일 발송용. 설정하지 않으면 비밀번호 찾기 요청 시 "메일 발송이 설정되지 않았습니다" 오류가 표시됨.
+
+**Docker 배포 시** 서버에 `.env`를 두거나, `docker compose` 실행 전에 환경 변수로 지정:
+
+```bash
+export BASE_URL=https://your-domain.com
+export SMTP_HOST=smtp.example.com
+export SMTP_PORT=587
+export SMTP_USER=your-mail@example.com
+export SMTP_PASSWORD=your-password
+export SMTP_FROM=your-mail@example.com
+docker compose up -d --build
+```
+
+또는 `/opt/dev_list/.env` 파일에 위 변수들을 넣고 `docker compose`가 읽도록 하면 됩니다.
+
+---
+
 ## 접속이 안 될 때 (죽었을 때)
 
-**http://서버IP:3000** 이 안 뜨면 서버에 SSH 접속해서 아래 순서로 확인하세요.
+**https://서버IP** (또는 http://서버IP → 자동으로 https로 이동) 가 안 뜨면 서버에 SSH 접속해서 아래 순서로 확인하세요.
 
 1. **컨테이너가 떠 있는지**
    ```bash
@@ -266,6 +315,6 @@ sudo systemctl start dev_list
 | 1 | **로컬 PC**    | `ssh root@서버IP` 로 접속 |
 | 2 | **SSH(IWNV)** | (최초) `sudo mkdir -p /opt/dev_list` → `exit` |
 | 3 | **로컬 PC**    | `scp -r ...` 또는 `wsl scp ...` 로 코드 복사 |
-| 4 | **SSH(IWNV)** | `cd /opt/dev_list` → `docker compose up -d --build` (또는 Node 명령어) |
+| 4 | **SSH(IWNV)** | (인증서 없으면) `./scripts/gen-selfsigned-cert.sh` → `docker compose up -d --build` |
 
 이후에는 **SSH 접속해서 명령어 넣는 방식**으로만 배포/재시작하면 됩니다.
