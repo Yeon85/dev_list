@@ -557,7 +557,7 @@
           </div>
           <div class="form-group">
             <input type="hidden" id="editNote" />
-            <button type="button" class="btn btn-secondary btn-sm" id="editNoteBtn">노트</button>
+            <button type="button" class="btn btn-secondary btn-sm" id="editNoteBtn" onclick="var m=document.getElementById('noteModal');var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(m){m.classList.add('open');}if(t&&e){t.value=e.value||'';t.focus();}return false;">노트</button>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -566,7 +566,7 @@
             </div>
             <div class="form-group">
               <label>로그인 PW</label>
-              <input type="password" id="editLoginPw" />
+              <input type="text" id="editLoginPw" autocomplete="off" />
             </div>
           </div>
           <div class="form-group checkbox">
@@ -611,7 +611,7 @@
         <textarea id="notePopupText" rows="14" style="width:100%; min-height:240px; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn">닫기</button>
+        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn" onclick="var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');var m=document.getElementById('noteModal');if(t&&e)e.value=t.value||'';if(m)m.classList.remove('open');return false;">저장후닫기</button>
       </div>
     </div>
   </div>
@@ -1514,7 +1514,11 @@
     }
 
     var editNoteBtnEl = document.getElementById('editNoteBtn');
-    if (editNoteBtnEl) editNoteBtnEl.addEventListener('click', function(e) { e.preventDefault(); openNotePanel(); });
+    if (editNoteBtnEl) editNoteBtnEl.addEventListener('click', function(e) { e.preventDefault(); var m=document.getElementById('noteModal');var t=document.getElementById('notePopupText');var el=document.getElementById('editNote');if(m)m.classList.add('open');if(t&&el){t.value=el.value||'';t.focus();} });
+    var notePopupCloseBtnEl = document.getElementById('notePopupCloseBtn');
+    if (notePopupCloseBtnEl) notePopupCloseBtnEl.addEventListener('click', function() { var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');var m=document.getElementById('noteModal');if(t&&e)e.value=t.value||'';if(m)m.classList.remove('open'); });
+    var noteModalEl = document.getElementById('noteModal');
+    if (noteModalEl) noteModalEl.addEventListener('click', function(ev) { if (ev.target === noteModalEl) { var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(t&&e)e.value=t.value||'';noteModalEl.classList.remove('open'); } });
     var notePanelCloseBtn = document.getElementById('notePanelCloseBtn');
     if (notePanelCloseBtn) notePanelCloseBtn.addEventListener('click', closeNotePanel);
 

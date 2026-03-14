@@ -1,0 +1,21 @@
+# dev_list 서비스 - 서버 부팅 시 자동 실행, 죽으면 재시작 아님(컨테이너가 restart: unless-stopped 로 유지)
+# 설치: 서버에서
+#   sudo cp /opt/dev_list/scripts/dev_list.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable dev_list
+#   sudo systemctl start dev_list
+[Unit]
+Description=dev_list (Docker Compose)
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+WorkingDirectory=/opt/dev_list
+ExecStart=/usr/bin/docker compose up -d
+ExecStop=/usr/bin/docker compose down
+TimeoutStartSec=0
+
+[Install]
+WantedBy=multi-user.target

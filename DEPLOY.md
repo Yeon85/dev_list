@@ -204,6 +204,61 @@ pm2 save && pm2 startup
 
 ---
 
+## 서비스 계속 켜두기 (부팅 시 자동 실행)
+
+서버를 재부팅해도 **http://서버IP:3000** 이 자동으로 떠 있게 하려면 systemd 서비스를 등록합니다.
+
+**서버에 SSH 접속한 뒤** 한 번만 실행:
+
+```bash
+# 1) 서비스 파일 복사
+sudo cp /opt/dev_list/scripts/dev_list.service /etc/systemd/system/
+
+# 2) systemd 다시 읽기
+sudo systemctl daemon-reload
+
+# 3) 부팅 시 자동 시작 설정
+sudo systemctl enable dev_list
+
+# 4) 지금 바로 실행 (이미 docker compose 로 띄운 적 있으면 한 번 더 해도 됨)
+sudo systemctl start dev_list
+```
+
+이후 서버를 재부팅하면 Docker가 켜진 뒤 자동으로 `docker compose up -d`가 실행되어 앱이 뜹니다.  
+컨테이너가 죽어도 `restart: unless-stopped` 때문에 Docker가 다시 띄웁니다.
+
+---
+
+## 접속이 안 될 때 (죽었을 때)
+
+**http://서버IP:3000** 이 안 뜨면 서버에 SSH 접속해서 아래 순서로 확인하세요.
+
+1. **컨테이너가 떠 있는지**
+   ```bash
+   cd /opt/dev_list
+   docker compose ps
+   ```
+   - `Up` 이 아니면: `docker compose up -d` 로 다시 띄우기.
+
+2. **앱 로그 확인 (에러 원인 보기)**
+   ```bash
+   docker compose logs app --tail 100
+   ```
+
+3. **부팅 시 자동 실행을 넣었는데 재부팅 후 안 뜨는 경우**
+   ```bash
+   sudo systemctl status dev_list
+   sudo systemctl start dev_list
+   ```
+
+4. **Docker 자체가 꺼져 있는 경우**
+   ```bash
+   sudo systemctl start docker
+   cd /opt/dev_list && docker compose up -d
+   ```
+
+---
+
 ## 정리
 
 | 순서 | 하는 곳        | 할 일 |
