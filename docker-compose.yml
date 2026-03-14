@@ -9,7 +9,8 @@ services:
     environment:
       PORT: 3000
       # Docker 안에서는 반드시 host "db" (아래 db 서비스). 바꾸면 안 됨.
-      DATABASE_URL: mysql://devlist:devlist_pw@db:3306/devlist
+      #DATABASE_URL: mysql://devlist:devlist_pw@db:3306/devlist
+      DATABASE_URL: mysql://devlist:devlist_pw@127.0.0.1:3306/devlist
       SESSION_SECRET: ${SESSION_SECRET:-iwinv-secret-change-me}
       # 비밀번호 찾기용: 공개 접속 주소 (예: https://your-domain.com)
       BASE_URL: ${BASE_URL:-}
@@ -40,8 +41,9 @@ services:
   db:
     image: mysql:8.0
     container_name: iwinv-db
-    ports:
-      - "3306:3306"
+    # 호스트에 3306 노출 안 함 (이미 서버에 MySQL이 3306 쓰면 충돌 방지). app 은 db:3306 으로 접속.
+    expose:
+      - "3306"
     environment:
       MYSQL_ROOT_PASSWORD: root
       MYSQL_DATABASE: devlist
