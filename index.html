@@ -127,6 +127,7 @@
     th.tech { min-width: 80px; }
     th.url { min-width: 200px; }
     th.info { min-width: 200px; }
+    th.col-etc { max-width: 100px; min-width: 80px; }
     th.build { width: 70px; text-align: center; }
     th.service { width: 80px; min-width: 80px; text-align: center; position: sticky; right: 0; background: #f8f9fa; box-shadow: -4px 0 6px rgba(0,0,0,0.04); z-index: 1; }
     td.service-cell { position: sticky; right: 0; background: var(--table-bg); box-shadow: -4px 0 6px rgba(0,0,0,0.04); z-index: 0; text-align: center; }
@@ -521,9 +522,7 @@
   <div id="editModal" class="modal-overlay">
     <div class="modal edit-modal-inner" onclick="event.stopPropagation()" style="max-width: 720px;">
       <div id="editFormWrap">
-        <div class="modal-header">
-          <span id="editModalTitle">프로젝트 수정</span>
-        </div>
+        <div class="modal-header" id="editModalTitle">프로젝트 수정</div>
         <div class="modal-body">
           <input type="hidden" id="editProjectId" />
           <div class="form-group">
@@ -550,19 +549,15 @@
           </div>
           <div class="form-group">
             <label>GitHub URL</label>
-            <input type="url" id="editGithubUrl" placeholder="https://github.com/..." value="https://github.com/"/>
+            <input type="url" id="editGithubUrl" placeholder="https://github.com/..." text="https://github.com/"/>
           </div>
-          <div class="form-row" style="align-items: flex-end; gap: 0.75rem;">
-            <div class="form-group" style="flex: 1; min-width: 0;">
-              <label>기타</label>
-              <input type="text" id="editEtc" placeholder="기타 메모..." style="width: 100%; box-sizing: border-box;" />
-            </div>
-            <div class="form-group" style="flex-shrink: 0; margin-left: auto;">
-              <button type="button" class="btn btn-secondary btn-sm" id="editNoteBtn" onclick="var m=document.getElementById('noteModal');var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(m){m.classList.add('open');}if(t&&e){t.value=e.value||'';t.focus();}return false;">노트</button>
-            </div>
+          <div class="form-group">
+            <label>기타</label>
+            <input type="text" id="editEtc" placeholder="기타 메모..." />
           </div>
-          <div class="form-group" style="display:none;">
+          <div class="form-group">
             <input type="hidden" id="editNote" />
+            <button type="button" class="btn btn-secondary btn-sm" id="editNoteBtn">노트</button>
           </div>
           <div class="form-row">
             <div class="form-group">
@@ -609,14 +604,14 @@
   </div>
 
   <!-- 노트 팝업 (수정 모달 위에 띄움) -->
-  <div id="noteModal" class="modal-overlay" onclick="if(event.target===this){var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(t&&e)e.value=t.value||'';this.classList.remove('open');}">
+  <div id="noteModal" class="modal-overlay">
     <div class="modal" style="max-width: 640px;" onclick="event.stopPropagation()">
       <div class="modal-header">노트</div>
       <div class="modal-body" style="min-height: 260px;">
         <textarea id="notePopupText" rows="14" style="width:100%; min-height:240px; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn" onclick="var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');var m=document.getElementById('noteModal');if(t&&e){e.value=t.value||'';}if(m){m.classList.remove('open');}return false;">닫기</button>
+        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn">닫기</button>
       </div>
     </div>
   </div>
@@ -645,15 +640,16 @@
     </div>
   </div>
 
-  <!-- 노트 보기 전용 팝업 (목록에서 클릭 시) -->
+  <!-- 노트 보기/편집 팝업 (목록에서 노트 버튼 클릭 시) -->
   <div id="noteViewModal" class="modal-overlay">
     <div class="modal note-modal" style="max-width: 560px;" onclick="event.stopPropagation()">
       <div class="modal-header">노트</div>
       <div class="modal-body" style="max-height: 60vh; overflow: auto;">
-        <div id="noteViewContent" style="white-space: pre-wrap; word-break: break-word; padding: 0.5rem 0;"></div>
+        <textarea id="noteViewTextarea" rows="14" style="width:100%; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" id="noteViewCloseBtn">닫기</button>
+        <button type="button" class="btn btn-primary" id="noteViewSaveBtn">저장</button>
       </div>
     </div>
   </div>
@@ -664,6 +660,8 @@
       <p class="subtitle">카테고리별 데모 서비스 목록</p>
     </div>
     <div class="header-actions" id="headerActions" style="display: none;">
+      <a href="/" id="navListLink" style="margin-right: 0.5rem; color: rgba(255,255,255,0.9); text-decoration: none; font-size: 0.9rem;">목록</a>
+      <button type="button" id="navNotesBtn" style="margin-right: 0.5rem; background: transparent; border: none; color: rgba(255,255,255,0.9); cursor: pointer; font-size: 0.9rem; padding: 0;">Notes</button>
       <span id="headerUserName" style="margin-right: 0.5rem; font-size: 0.9rem;"></span>
       <button type="button" class="btn btn-secondary" id="logoutBtn">로그아웃</button>
     </div>
@@ -718,8 +716,7 @@
           <th class="desc">설명</th>
           <th class="tech" style="min-width:80px">SMARTBOLT</th>
           <th class="url">URL</th>
-          <th class="desc">기타</th>
-          <th style="width:56px; text-align:center">노트</th>
+          <th class="col-etc">기타</th>
           <th class="info">정보 (클릭 복사)</th>
           <th class="build" style="width:70px;text-align:center">빌드</th>
           <th class="service" style="width:80px">서비스</th>
@@ -1107,7 +1104,7 @@
       document.getElementById('editDesc').value = '';
       document.getElementById('editTech').value = 'React, Node';
       document.getElementById('editUrl').value = '';
-      document.getElementById('editGithubUrl').value = 'https://github.com/...';
+      document.getElementById('editGithubUrl').value = '';
       document.getElementById('editNote').value = '';
       document.getElementById('editEtc').value = '';
       document.getElementById('editLoginId').value = '';
@@ -1248,8 +1245,7 @@
           <td>${escapeHtml(p.desc || '-')}</td>
           <td>${escapeHtml(p.tech || '-')}</td>
           <td>${p.url && p.url !== '-' ? `<a href="${escapeHtml(p.url)}" class="url-link" target="_blank" rel="noopener">${escapeHtml(p.url)}</a>` : '-'}</td>
-          <td>${escapeHtml((p.etc && p.etc !== '-') ? p.etc : '-')}</td>
-          <td style="text-align:center"><button type="button" class="btn-detail note-view-btn" data-project-id="${p.projectId}" title="노트 보기">노트</button></td>
+          <td class="col-etc" style="max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;" title="${escapeHtml((p.etc && p.etc !== '-') ? p.etc : '')}">${escapeHtml((p.etc && p.etc !== '-') ? p.etc : '-')}</td>
           <td>
             <div class="info-copy-wrap">
               <div class="info-copy info-copy-id" data-value="${escapeHtml(idVal(p.id))}" title="클릭하면 ID만 복사"><span class="label">ID:</span> ${escapeHtml(idVal(p.id))}</div>
@@ -1274,7 +1270,7 @@
         });
       });
 
-      document.querySelectorAll('.btn-detail:not(.note-view-btn)').forEach(btn => {
+      document.querySelectorAll('.btn-detail').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const projectId = btn.dataset.projectId;
@@ -1287,20 +1283,6 @@
         });
       });
 
-      document.querySelectorAll('.note-view-btn').forEach(btn => {
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const projectId = btn.dataset.projectId;
-          const proj = projects.find((x) => String(x.projectId) === String(projectId));
-          const noteText = (proj && proj.note) ? String(proj.note).trim() : '';
-          const el = document.getElementById('noteViewContent');
-          if (el) {
-            el.innerHTML = noteText ? escapeHtml(noteText) : '<span style="color:#95a5a6">내용 없음</span>';
-          }
-          document.getElementById('noteViewModal').classList.add('open');
-        });
-      });
     }
 
     function escapeHtml(s) {
@@ -1531,11 +1513,48 @@
       if (editFormWrap) editFormWrap.style.display = 'block';
     }
 
+    var editNoteBtnEl = document.getElementById('editNoteBtn');
+    if (editNoteBtnEl) editNoteBtnEl.addEventListener('click', function(e) { e.preventDefault(); openNotePanel(); });
+    var notePanelCloseBtn = document.getElementById('notePanelCloseBtn');
+    if (notePanelCloseBtn) notePanelCloseBtn.addEventListener('click', closeNotePanel);
+
     document.getElementById('noteViewCloseBtn').addEventListener('click', () => {
       document.getElementById('noteViewModal').classList.remove('open');
     });
     document.getElementById('noteViewModal').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) document.getElementById('noteViewModal').classList.remove('open');
+    });
+    document.getElementById('noteViewSaveBtn').addEventListener('click', async () => {
+      const modal = document.getElementById('noteViewModal');
+      const projectId = modal.dataset.currentProjectId;
+      const textarea = document.getElementById('noteViewTextarea');
+      if (!projectId || !textarea) return;
+      const proj = projects.find((x) => String(x.projectId) === String(projectId));
+      if (!proj) return;
+      try {
+        const r = await fetch(API + '/api/projects/' + projectId, {
+          ...fetchOpts(),
+          method: 'PUT',
+          body: JSON.stringify({
+            name: proj.name,
+            version: proj.version || '',
+            desc: proj.desc || '',
+            tech: proj.tech || '',
+            url: proj.url || '',
+            github_url: proj.github_url || '',
+            etc: proj.etc || '',
+            note: textarea.value || '',
+            login_id: proj.id || '',
+            login_pw: proj.pw || '',
+            status: proj.status,
+            build: proj.build,
+            category_id: proj.category_id,
+          }),
+        });
+        if (!r.ok) { if (r.status === 401) openLoginModal(); return; }
+        modal.classList.remove('open');
+        await loadProjects();
+      } catch (_) {}
     });
 
     async function openNotesPanel() {
@@ -1606,6 +1625,11 @@
         errEl.style.display = 'block';
       }
     }
+    document.getElementById('navNotesBtn').addEventListener('click', async (e) => {
+      e.preventDefault();
+      if (!loggedIn) { openLoginModal(); return; }
+      await openNotesPanel();
+    });
     document.getElementById('notesPanelCloseBtn').addEventListener('click', closeNotesPanel);
     document.getElementById('notesPanelModal').addEventListener('click', (e) => {
       if (e.target === e.currentTarget) closeNotesPanel();
