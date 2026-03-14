@@ -1,4 +1,5 @@
 require('dotenv').config();
+const path = require('path');
 const express = require('express');
 const cors = require('cors');
 const session = require('express-session');
@@ -8,7 +9,7 @@ const nodemailer = require('nodemailer');
 const crypto = require('crypto');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 2001;
 const SALT_ROUNDS = 10;
 
 function parseDatabaseUrl(url) {
@@ -86,6 +87,17 @@ async function initTable(p) {
       await p.execute('ALTER TABLE projects ADD COLUMN etc VARCHAR(512) DEFAULT NULL');
     }
   } catch (_) {}
+  try {
+    await p.execute('ALTER TABLE projects ADD COLUMN etc VARCHAR(512) DEFAULT NULL');
+  } catch (e) {
+    if (e.code !== 'ER_DUP_FIELDNAME' && e.errno !== 1060) throw e;
+  }
+  const [noteCol] = await p.execute(
+    "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = 'projects' AND COLUMN_NAME = 'note'"
+  );
+  if (noteCol.length === 0) {
+    await p.execute('ALTER TABLE projects ADD COLUMN note TEXT DEFAULT NULL');
+  }
   await p.execute(`
     CREATE TABLE IF NOT EXISTS \`groups\` (
       id INT AUTO_INCREMENT PRIMARY KEY,
@@ -127,7 +139,7 @@ async function initTable(p) {
   if (cnt === 0) {
     await p.execute(
       `INSERT INTO projects (name, version, description, tech, url, login_id, login_pw, status, build) VALUES
-       ('dev-list', 'v1.0', '프로젝트 관리 대시보드', 'HTML/CSS/JS', 'http://localhost:3000', 'admin', '111111', 1, 1),
+       ('dev-list', 'v1.0', '프로젝트 관리 대시보드', 'HTML/CSS/JS', 'http://localhost:2001', 'admin', '111111', 1, 1),
        ('api-gateway', 'v2.1', 'API 게이트웨이', 'Node.js', 'http://localhost:3001', 'gateway', 'gw!456', 1, 1)`
     );
   }
@@ -338,13 +350,13 @@ app.get('/api/projects', async (req, res) => {
     }
     const p = await getPool();
     const categoryId = req.query.category_id;
-    let sql = 'SELECT id, name, version, description, tech, url, github_url, etc, login_id, login_pw, status, build, category_id FROM projects WHERE owner_email = ?';
+    let sql = 'SELECT id, name, version, description, tech, url, github_url, etc, note, login_id, login_pw, status, build, category_id FROM projects WHERE owner_email = ?';
     const params = [owner];
     if (categoryId !== undefined && categoryId !== '') {
       sql += ' AND category_id = ?';
       params.push(categoryId);
     }
-    sql += ' ORDER BY id';
+    sql += ' ORDER BY id DESC';
     const [rows] = await p.execute(sql, params);
     const list = rows.map((r) => ({
       projectId: r.id,
@@ -355,6 +367,7 @@ app.get('/api/projects', async (req, res) => {
       url: r.url || '-',
       github_url: r.github_url || '-',
       etc: r.etc || '-',
+      note: r.note || '',
       id: r.login_id || '',
       pw: r.login_pw || '',
       status: !!r.status,
@@ -380,6 +393,7 @@ app.post(['/api/projects', '/api/projects/'], requireAuth, async (req, res) => {
       url,
       github_url,
       etc,
+      note,
       login_id,
       login_pw,
       status,
@@ -391,8 +405,8 @@ app.post(['/api/projects', '/api/projects/'], requireAuth, async (req, res) => {
     }
     const owner = req.session.user;
     await p.execute(
-      `INSERT INTO projects (name, version, description, tech, url, github_url, etc, login_id, login_pw, status, build, category_id, group_id, owner_email)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
+      `INSERT INTO projects (name, version, description, tech, url, github_url, etc, note, login_id, login_pw, status, build, category_id, group_id, owner_email)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)`,
       [
         (name || '').trim(),
         version || '',
@@ -401,6 +415,7 @@ app.post(['/api/projects', '/api/projects/'], requireAuth, async (req, res) => {
         url || '',
         github_url || '',
         etc || '',
+        note || null,
         login_id || '',
         login_pw || '',
         status ? 1 : 0,
@@ -433,6 +448,7 @@ app.get('/api/projects/:id', requireAuth, async (req, res) => {
       url: r.url || '',
       github_url: r.github_url || '',
       etc: r.etc || '',
+      note: r.note || '',
       login_id: r.login_id || '',
       login_pw: r.login_pw || '',
       status: !!r.status,
@@ -457,6 +473,7 @@ app.put('/api/projects/:id', requireAuth, async (req, res) => {
       url,
       github_url,
       etc,
+      note,
       login_id,
       login_pw,
       status,
@@ -465,7 +482,7 @@ app.put('/api/projects/:id', requireAuth, async (req, res) => {
     } = req.body;
     const [result] = await p.execute(
       `UPDATE projects SET
-        name = ?, version = ?, description = ?, tech = ?, url = ?, github_url = ?, etc = ?,
+        name = ?, version = ?, description = ?, tech = ?, url = ?, github_url = ?, etc = ?, note = ?,
         login_id = ?, login_pw = ?, status = ?, build = ?,
         category_id = ?
       WHERE id = ? AND owner_email = ?`,
@@ -477,6 +494,7 @@ app.put('/api/projects/:id', requireAuth, async (req, res) => {
         url || '',
         github_url || '',
         etc || '',
+        note || null,
         login_id || '',
         login_pw || '',
         status ? 1 : 0,
@@ -570,7 +588,12 @@ app.delete('/api/categories/:id', requireAuth, async (req, res) => {
 // API 경로인데 매칭된 라우트 없을 때
 app.use('/api', (req, res) => res.status(404).json({ error: 'API route not found', path: req.path, method: req.method }));
 
-// 정적 파일 (프론트)
+// SPA 라우팅: /notes 등은 index.html로 서빙
+app.get('/notes', (req, res) => res.sendFile(path.join(__dirname, 'index.html')));
+
+// 정적 파일 (프론트) — jQuery, Summernote는 node_modules에서 /vendor 로 서빙
+app.use('/vendor/jquery', express.static(path.join(__dirname, 'node_modules/jquery/dist')));
+app.use('/vendor/summernote', express.static(path.join(__dirname, 'node_modules/summernote/dist')));
 app.use(express.static(__dirname));
 
 app.listen(PORT, () => {

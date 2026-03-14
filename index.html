@@ -7,6 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet" />
+  <link href="/vendor/summernote/summernote-lite.min.css" rel="stylesheet" />
   <style>
     :root {
       --header-bg: #2c3e50;
@@ -100,7 +101,8 @@
       background: var(--table-bg);
       border-radius: 8px;
       box-shadow: 0 1px 4px rgba(0,0,0,0.08);
-      overflow: hidden;
+      overflow-x: auto;
+      overflow-y: visible;
       border: 1px solid var(--border);
     }
     table {
@@ -126,7 +128,9 @@
     th.url { min-width: 200px; }
     th.info { min-width: 200px; }
     th.build { width: 70px; text-align: center; }
-    th.service { width: 80px; text-align: center; }
+    th.service { width: 80px; min-width: 80px; text-align: center; position: sticky; right: 0; background: #f8f9fa; box-shadow: -4px 0 6px rgba(0,0,0,0.04); z-index: 1; }
+    td.service-cell { position: sticky; right: 0; background: var(--table-bg); box-shadow: -4px 0 6px rgba(0,0,0,0.04); z-index: 0; text-align: center; }
+    tbody tr:hover td.service-cell { background: #f8fafc; }
     td {
       padding: 0.65rem 1rem;
       border-bottom: 1px solid #eee;
@@ -210,6 +214,10 @@
       visibility: visible;
       pointer-events: auto;
     }
+    #noteViewModal.open, #notesPanelModal.open { z-index: 1001; }
+    /* 노트 팝업: 수정 모달 위에 띄우기 */
+    #noteModal { z-index: 1100; }
+    #noteModal.open { z-index: 1100; opacity: 1; visibility: visible; pointer-events: auto; }
     .modal {
       background: #fff;
       border-radius: 8px;
@@ -226,6 +234,22 @@
       font-size: 1.1rem;
     }
     .modal .modal-body { padding: 1.25rem; }
+    /* 노트 모달: 서머노트를 한 덩어리로 표시 */
+    .note-modal .modal-body { padding: 0.75rem 1.25rem; }
+    .note-modal-body { min-height: 260px; }
+    .note-fallback { min-height: 220px; box-sizing: border-box; }
+    .note-editor-wrap.note-editor-wrap {
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      overflow: hidden;
+      min-height: 200px;
+      font-family: 'Noto Sans KR', sans-serif;
+    }
+    .note-editor-wrap .note-toolbar { border-bottom: 1px solid var(--border); padding: 0.4rem 0.5rem; }
+    .note-editor-wrap .note-editable { padding: 0.75rem 1rem; min-height: 180px; font-size: 0.9rem; }
+    .note-editor-wrap .note-placeholder { color: #95a5a6; pointer-events: none; }
+    .note-editor-wrap .note-editable:focus + .note-placeholder,
+    .note-editor-wrap .note-editor .note-editable[contenteditable]:not(:empty) + .note-placeholder { display: none !important; }
     .modal .modal-footer {
       padding: 1rem 1.25rem;
       border-top: 1px solid var(--border);
@@ -404,6 +428,16 @@
     #loginRequired p { font-size: 1.1rem; color: #5d6d7e; margin-bottom: 1.5rem; }
     #mainContent { display: none; }
     #mainContent.visible { display: block; }
+    #notesPage { display: none; padding: 1.25rem 2rem 2rem; }
+    #notesPage.visible { display: block; }
+    #notesPage .notes-title { font-size: 1.25rem; font-weight: 600; margin-bottom: 1rem; }
+    #notesPage .notes-nav { margin-bottom: 1rem; }
+    #notesPage .notes-list { background: var(--table-bg); border-radius: 8px; border: 1px solid var(--border); overflow: hidden; }
+    #notesPage .notes-list table { width: 100%; border-collapse: collapse; }
+    #notesPage .notes-list th, #notesPage .notes-list td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); }
+    #notesPage .notes-list th { background: #f8f9fa; font-weight: 600; }
+    #notesPage .notes-list tr:last-child td { border-bottom: none; }
+    #notesPage .note-preview { max-width: 320px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #5d6d7e; font-size: 0.9rem; }
   </style>
 </head>
 <body>
@@ -485,69 +519,141 @@
 
   <!-- 상세/수정 모달 (추가·수정 공용) -->
   <div id="editModal" class="modal-overlay">
-    <div class="modal" onclick="event.stopPropagation()">
-      <div class="modal-header" id="editModalTitle">프로젝트 수정</div>
-      <div class="modal-body">
-        <input type="hidden" id="editProjectId" />
-        <div class="form-group">
-          <label>프로젝트명</label>
-          <input type="text" id="editName" />
+    <div class="modal edit-modal-inner" onclick="event.stopPropagation()" style="max-width: 720px;">
+      <div id="editFormWrap">
+        <div class="modal-header">
+          <span id="editModalTitle">프로젝트 수정</span>
         </div>
-        <div class="form-row">
+        <div class="modal-body">
+          <input type="hidden" id="editProjectId" />
           <div class="form-group">
-            <label>버전</label>
-            <input type="text" id="editVersion" placeholder="v1.0" />
+            <label>프로젝트명</label>
+            <input type="text" id="editName" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>버전</label>
+              <input type="text" id="editVersion" placeholder="v1.0" />
+            </div>
+            <div class="form-group">
+              <label>스택</label>
+              <input type="text" id="editTech" placeholder="React, Node" />
+            </div>
           </div>
           <div class="form-group">
-            <label>스택</label>
-            <input type="text" id="editTech" placeholder="React, Node" />
-          </div>
-        </div>
-        <div class="form-group">
-          <label>설명</label>
-          <input type="text" id="editDesc" />
-        </div>
-        <div class="form-group">
-          <label>URL</label>
-          <input type="url" id="editUrl" placeholder="http://..." />
-        </div>
-        <div class="form-group">
-          <label>GitHub URL</label>
-          <input type="url" id="editGithubUrl" placeholder="https://github.com/..." />
-        </div>
-        <div class="form-group">
-          <label>기타</label>
-          <input type="text" id="editEtc" placeholder="기타 메모..." />
-        </div>
-        <div class="form-row">
-          <div class="form-group">
-            <label>로그인 ID</label>
-            <input type="text" id="editLoginId" />
+            <label>설명</label>
+            <input type="text" id="editDesc" />
           </div>
           <div class="form-group">
-            <label>로그인 PW</label>
-            <input type="password" id="editLoginPw" />
+            <label>URL</label>
+            <input type="url" id="editUrl" placeholder="http://..." />
           </div>
+          <div class="form-group">
+            <label>GitHub URL</label>
+            <input type="url" id="editGithubUrl" placeholder="https://github.com/..." value="https://github.com/"/>
+          </div>
+          <div class="form-row" style="align-items: flex-end; gap: 0.75rem;">
+            <div class="form-group" style="flex: 1; min-width: 0;">
+              <label>기타</label>
+              <input type="text" id="editEtc" placeholder="기타 메모..." style="width: 100%; box-sizing: border-box;" />
+            </div>
+            <div class="form-group" style="flex-shrink: 0; margin-left: auto;">
+              <button type="button" class="btn btn-secondary btn-sm" id="editNoteBtn" onclick="var m=document.getElementById('noteModal');var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(m){m.classList.add('open');}if(t&&e){t.value=e.value||'';t.focus();}return false;">노트</button>
+            </div>
+          </div>
+          <div class="form-group" style="display:none;">
+            <input type="hidden" id="editNote" />
+          </div>
+          <div class="form-row">
+            <div class="form-group">
+              <label>로그인 ID</label>
+              <input type="text" id="editLoginId" />
+            </div>
+            <div class="form-group">
+              <label>로그인 PW</label>
+              <input type="password" id="editLoginPw" />
+            </div>
+          </div>
+          <div class="form-group checkbox">
+            <input type="checkbox" id="editStatus" checked />
+            <label for="editStatus">상태 (활성)</label>
+          </div>
+          <div class="form-group">
+            <label>카테고리</label>
+            <select id="editCategoryId" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;">
+              <option value="">선택 안 함</option>
+            </select>
+          </div>
+          <div class="form-group checkbox">
+            <input type="checkbox" id="editBuild" checked />
+            <label for="editBuild">빌드</label>
+          </div>
+          <p id="editError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
         </div>
-        <div class="form-group checkbox">
-          <input type="checkbox" id="editStatus" checked />
-          <label for="editStatus">상태 (활성)</label>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="editCancelBtn">취소</button>
+          <button type="button" class="btn btn-primary" id="editSaveBtn" onclick="window.saveProjectEdit && window.saveProjectEdit(); return false;">저장</button>
         </div>
-        <div class="form-group">
-          <label>카테고리</label>
-          <select id="editCategoryId" style="width:100%;padding:0.5rem 0.75rem;border:1px solid var(--border);border-radius:6px;font-size:0.9rem;">
-            <option value="">선택 안 함</option>
-          </select>
+      </div>
+      <!-- 노트 패널: 수정 모달 안에서 전환 (별도 팝업 없음) -->
+      <div id="notePanel" style="display: none;">
+        <div class="modal-header">노트</div>
+        <div class="modal-body" style="min-height: 240px;">
+          <textarea id="notePanelText" rows="12" style="width:100%; min-height:220px; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
         </div>
-        <div class="form-group checkbox">
-          <input type="checkbox" id="editBuild" checked />
-          <label for="editBuild">빌드</label>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" id="notePanelCloseBtn">닫기</button>
         </div>
-        <p id="editError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 노트 팝업 (수정 모달 위에 띄움) -->
+  <div id="noteModal" class="modal-overlay" onclick="if(event.target===this){var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');if(t&&e)e.value=t.value||'';this.classList.remove('open');}">
+    <div class="modal" style="max-width: 640px;" onclick="event.stopPropagation()">
+      <div class="modal-header">노트</div>
+      <div class="modal-body" style="min-height: 260px;">
+        <textarea id="notePopupText" rows="14" style="width:100%; min-height:240px; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical; box-sizing:border-box;" placeholder="노트를 입력하세요."></textarea>
       </div>
       <div class="modal-footer">
-        <button type="button" class="btn btn-secondary" id="editCancelBtn">취소</button>
-        <button type="button" class="btn btn-primary" id="editSaveBtn" onclick="window.saveProjectEdit && window.saveProjectEdit(); return false;">저장</button>
+        <button type="button" class="btn btn-secondary" id="notePopupCloseBtn" onclick="var t=document.getElementById('notePopupText');var e=document.getElementById('editNote');var m=document.getElementById('noteModal');if(t&&e){e.value=t.value||'';}if(m){m.classList.remove('open');}return false;">닫기</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Notes 패널 모달 (헤더 Notes 버튼 클릭 시) -->
+  <div id="notesPanelModal" class="modal-overlay">
+    <div class="modal note-modal" style="max-width: 560px;" onclick="event.stopPropagation()">
+      <div class="modal-header">Notes</div>
+      <div class="modal-body">
+        <div class="form-group" id="notesPanelProjectWrap">
+          <label>프로젝트</label>
+          <select id="notesPanelProject" style="width:100%; padding:0.5rem 0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem;">
+            <option value="">선택...</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>노트</label>
+          <textarea id="notesPanelText" rows="12" style="width:100%; padding:0.75rem; border:1px solid var(--border); border-radius:6px; font-size:0.9rem; font-family:inherit; resize:vertical;" placeholder="노트를 입력하세요."></textarea>
+        </div>
+        <p id="notesPanelError" style="color: var(--status-warn); font-size: 0.85rem; margin-top: 0.5rem; display: none;"></p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="notesPanelCloseBtn">닫기</button>
+        <button type="button" class="btn btn-primary" id="notesPanelSaveBtn">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 노트 보기 전용 팝업 (목록에서 클릭 시) -->
+  <div id="noteViewModal" class="modal-overlay">
+    <div class="modal note-modal" style="max-width: 560px;" onclick="event.stopPropagation()">
+      <div class="modal-header">노트</div>
+      <div class="modal-body" style="max-height: 60vh; overflow: auto;">
+        <div id="noteViewContent" style="white-space: pre-wrap; word-break: break-word; padding: 0.5rem 0;"></div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" id="noteViewCloseBtn">닫기</button>
       </div>
     </div>
   </div>
@@ -613,6 +719,7 @@
           <th class="tech" style="min-width:80px">SMARTBOLT</th>
           <th class="url">URL</th>
           <th class="desc">기타</th>
+          <th style="width:56px; text-align:center">노트</th>
           <th class="info">정보 (클릭 복사)</th>
           <th class="build" style="width:70px;text-align:center">빌드</th>
           <th class="service" style="width:80px">서비스</th>
@@ -624,6 +731,26 @@
   </div>
   </div>
   <!-- // mainContent -->
+
+  <!-- Notes 페이지 (/notes) -->
+  <div id="notesPage">
+    <div class="notes-nav"><a href="/" style="color: var(--link); text-decoration: none;">← 목록으로</a></div>
+    <h2 class="notes-title">Notes</h2>
+    <div id="notesLoginPrompt" style="display: none; padding: 2rem; text-align: center; color: #5d6d7e;">로그인 후 노트를 볼 수 있습니다.</div>
+    <div id="notesListWrap" class="notes-list" style="display: none;">
+      <table>
+        <thead>
+          <tr>
+            <th>프로젝트</th>
+            <th>노트 미리보기</th>
+            <th style="width: 80px;"></th>
+          </tr>
+        </thead>
+        <tbody id="notesListBody"></tbody>
+      </table>
+    </div>
+  </div>
+  <!-- // notesPage -->
 
   <!-- 카테고리 관리 모달 -->
   <div id="categoryManageModal" class="modal-overlay manage-modal">
@@ -685,8 +812,19 @@
     </div>
   </div>
 
+  <script src="/vendor/jquery/jquery.min.js"></script>
+  <script src="/vendor/summernote/summernote-lite.min.js"></script>
   <script>
     const API = window.location.origin;
+    if (!API || API.startsWith('file:')) {
+      console.warn('이 페이지는 서버 주소로 열어야 합니다. 예: http://localhost:2001');
+      document.addEventListener('DOMContentLoaded', function () {
+        var banner = document.createElement('div');
+        banner.style.cssText = 'position:fixed;top:0;left:0;right:0;background:#e74c3c;color:#fff;padding:12px 20px;text-align:center;z-index:9999;font-size:14px;';
+        banner.textContent = '이 페이지는 서버로 열어야 합니다. 브라우저 주소창에 http://localhost:2001 을 입력하세요. (먼저 터미널에서 npm run dev 실행)';
+        document.body.prepend(banner);
+      });
+    }
     let projects = [];
     let categories = [];
     let loggedIn = false;
@@ -702,20 +840,64 @@
         const r = await fetch(API + '/api/me', { credentials: 'include' });
         loggedIn = r.ok;
         document.getElementById('headerActions').style.display = loggedIn ? 'flex' : 'none';
-        document.getElementById('loginRequired').style.display = loggedIn ? 'none' : 'flex';
-        document.getElementById('mainContent').classList.toggle('visible', !!loggedIn);
         if (loggedIn) {
           const data = await r.json().catch(() => ({}));
           if (data.user) document.getElementById('headerUserName').textContent = data.user;
         }
+        applyRoute();
         return loggedIn;
       } catch (_) {
         loggedIn = false;
         document.getElementById('headerActions').style.display = 'none';
-        document.getElementById('loginRequired').style.display = 'flex';
-        document.getElementById('mainContent').classList.remove('visible');
+        applyRoute();
         return false;
       }
+    }
+
+    function applyRoute() {
+      const isNotesPage = window.location.pathname === '/notes';
+      const notesPageEl = document.getElementById('notesPage');
+      const mainContentEl = document.getElementById('mainContent');
+      const loginRequiredEl = document.getElementById('loginRequired');
+      if (isNotesPage) {
+        notesPageEl.classList.add('visible');
+        mainContentEl.classList.remove('visible');
+        mainContentEl.style.display = 'none';
+        if (loggedIn) {
+          document.getElementById('notesLoginPrompt').style.display = 'none';
+          document.getElementById('notesListWrap').style.display = 'block';
+          loadProjects().then(() => renderNotesList());
+        } else {
+          document.getElementById('notesLoginPrompt').style.display = 'block';
+          document.getElementById('notesListWrap').style.display = 'none';
+        }
+      } else {
+        notesPageEl.classList.remove('visible');
+        loginRequiredEl.style.display = loggedIn ? 'none' : 'flex';
+        mainContentEl.classList.toggle('visible', !!loggedIn);
+        mainContentEl.style.display = loggedIn ? 'block' : 'none';
+      }
+    }
+
+    function renderNotesList() {
+      const tbody = document.getElementById('notesListBody');
+      if (!tbody) return;
+      tbody.innerHTML = projects.map(p => {
+        const preview = (p.note || '').trim();
+        const previewText = preview.length > 80 ? preview.slice(0, 80) + '\u2026' : (preview || '-');
+        return '<tr><td>' + escapeHtml(p.name || '-') + '</td><td class="note-preview">' + escapeHtml(previewText) + '</td><td><button type="button" class="btn-detail note-view-btn" data-project-id="' + p.projectId + '">보기</button></td></tr>';
+      }).join('');
+      tbody.querySelectorAll('.note-view-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          const projectId = btn.dataset.projectId;
+          const proj = projects.find((x) => String(x.projectId) === String(projectId));
+          const noteText = (proj && proj.note) ? String(proj.note).trim() : '';
+          const el = document.getElementById('noteViewContent');
+          if (el) el.innerHTML = noteText ? escapeHtml(noteText) : '<span style="color:#95a5a6">내용 없음</span>';
+          document.getElementById('noteViewModal').classList.add('open');
+        });
+      });
     }
 
     async function loadProjects() {
@@ -861,8 +1043,8 @@
           successEl.textContent = data.message || '등록된 이메일이 있다면 재설정 링크를 발송했습니다. 메일을 확인하세요.';
           successEl.style.display = 'block';
         }
-      } catch (_) {
-        if (errEl) { errEl.textContent = '네트워크 오류'; errEl.style.display = 'block'; }
+      } catch (e) {
+        if (errEl) { errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패'); errEl.style.display = 'block'; }
       }
       forgotSendInProgress = false;
     }
@@ -896,14 +1078,8 @@
         const loginRes = await fetch(API + '/api/login', { ...fetchOpts(), method: 'POST', body: JSON.stringify({ id: email, password: pw }) });
         if (loginRes.ok) {
           loggedIn = true;
-          const headerActions = document.getElementById('headerActions');
-          const loginRequired = document.getElementById('loginRequired');
-          const mainContent = document.getElementById('mainContent');
-          const headerUserName = document.getElementById('headerUserName');
-          if (headerActions) headerActions.style.display = 'flex';
-          if (loginRequired) loginRequired.style.display = 'none';
-          if (mainContent) mainContent.classList.add('visible');
-          if (headerUserName) headerUserName.textContent = email;
+          document.getElementById('headerUserName').textContent = email;
+          applyRoute();
           loadProjects();
           loadCategoriesForChips();
         } else {
@@ -913,7 +1089,7 @@
           const loginErrorEl = document.getElementById('loginError');
           if (loginErrorEl) loginErrorEl.style.display = 'none';
         }
-      } catch (_) { if (errEl) { errEl.textContent = '네트워크 오류'; errEl.style.display = 'block'; } }
+      } catch (e) { if (errEl) { errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패'); errEl.style.display = 'block'; } }
       registerInProgress = false;
     }
     window.doRegister = doRegister;
@@ -931,7 +1107,8 @@
       document.getElementById('editDesc').value = '';
       document.getElementById('editTech').value = 'React, Node';
       document.getElementById('editUrl').value = '';
-      document.getElementById('editGithubUrl').value = '';
+      document.getElementById('editGithubUrl').value = 'https://github.com/...';
+      document.getElementById('editNote').value = '';
       document.getElementById('editEtc').value = '';
       document.getElementById('editLoginId').value = '';
       document.getElementById('editLoginPw').value = '';
@@ -947,6 +1124,10 @@
       fillEditModalSelects();
       const catSel = document.getElementById('editCategoryId');
       catSel.value = selectedCategoryId || '';
+      var editFormWrap = document.getElementById('editFormWrap');
+      var notePanel = document.getElementById('notePanel');
+      if (editFormWrap) editFormWrap.style.display = 'block';
+      if (notePanel) notePanel.style.display = 'none';
       document.getElementById('editModal').classList.add('open');
     }
     window.openProjectAdd = openProjectAdd;
@@ -969,18 +1150,16 @@
         }
         document.getElementById('loginModal').classList.remove('open');
         loggedIn = true;
-        document.getElementById('headerActions').style.display = 'flex';
-        document.getElementById('loginRequired').style.display = 'none';
-        document.getElementById('mainContent').classList.add('visible');
         if (data.user) document.getElementById('headerUserName').textContent = data.user;
+        applyRoute();
         loadProjects();
         loadCategoriesForChips();
         if (pendingEditProjectId) {
           openEditModal(pendingEditProjectId);
           pendingEditProjectId = null;
         }
-      } catch (_) {
-        errEl.textContent = '네트워크 오류';
+      } catch (e) {
+        errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패');
         errEl.style.display = 'block';
       }
     }
@@ -1024,11 +1203,16 @@
         document.getElementById('editUrl').value = data.url || '';
         document.getElementById('editGithubUrl').value = data.github_url || '';
         document.getElementById('editEtc').value = data.etc || '';
+        document.getElementById('editNote').value = data.note || '';
         document.getElementById('editLoginId').value = data.login_id || '';
         document.getElementById('editLoginPw').value = data.login_pw || '';
         document.getElementById('editStatus').checked = data.status !== false;
         document.getElementById('editBuild').checked = data.build !== false;
         catSel.value = data.category_id || '';
+        var editFormWrap = document.getElementById('editFormWrap');
+        var notePanel = document.getElementById('notePanel');
+        if (editFormWrap) editFormWrap.style.display = 'block';
+        if (notePanel) notePanel.style.display = 'none';
         document.getElementById('editModal').classList.add('open');
       } catch (_) {
         document.getElementById('editError').textContent = '프로젝트를 불러올 수 없습니다.';
@@ -1065,6 +1249,7 @@
           <td>${escapeHtml(p.tech || '-')}</td>
           <td>${p.url && p.url !== '-' ? `<a href="${escapeHtml(p.url)}" class="url-link" target="_blank" rel="noopener">${escapeHtml(p.url)}</a>` : '-'}</td>
           <td>${escapeHtml((p.etc && p.etc !== '-') ? p.etc : '-')}</td>
+          <td style="text-align:center"><button type="button" class="btn-detail note-view-btn" data-project-id="${p.projectId}" title="노트 보기">노트</button></td>
           <td>
             <div class="info-copy-wrap">
               <div class="info-copy info-copy-id" data-value="${escapeHtml(idVal(p.id))}" title="클릭하면 ID만 복사"><span class="label">ID:</span> ${escapeHtml(idVal(p.id))}</div>
@@ -1072,7 +1257,7 @@
             </div>
           </td>
           <td style="text-align:center">${p.build ? '<span class="build-label"><span class="status-dot"></span>빌드</span>' : '-'}</td>
-          <td><a href="#" class="btn-detail" data-project-id="${escapeHtml(String(p.projectId))}">상세</a></td>
+          <td class="service-cell"><a href="#" class="btn-detail" data-project-id="${escapeHtml(String(p.projectId))}">상세</a></td>
         </tr>
       `).join('');
 
@@ -1089,7 +1274,7 @@
         });
       });
 
-      document.querySelectorAll('.btn-detail').forEach(btn => {
+      document.querySelectorAll('.btn-detail:not(.note-view-btn)').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.preventDefault();
           const projectId = btn.dataset.projectId;
@@ -1099,6 +1284,21 @@
             return;
           }
           openEditModal(projectId);
+        });
+      });
+
+      document.querySelectorAll('.note-view-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const projectId = btn.dataset.projectId;
+          const proj = projects.find((x) => String(x.projectId) === String(projectId));
+          const noteText = (proj && proj.note) ? String(proj.note).trim() : '';
+          const el = document.getElementById('noteViewContent');
+          if (el) {
+            el.innerHTML = noteText ? escapeHtml(noteText) : '<span style="color:#95a5a6">내용 없음</span>';
+          }
+          document.getElementById('noteViewModal').classList.add('open');
         });
       });
     }
@@ -1273,8 +1473,8 @@
         await loadProjects();
         refillEditModalSelectsIfOpen();
         await fillFilterDropdowns();
-      } catch (_) {
-        errEl.textContent = '네트워크 오류';
+      } catch (e) {
+        errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패');
         errEl.style.display = 'block';
       }
     }
@@ -1286,8 +1486,8 @@
         const r = await fetch(API + '/api/categories/' + id, { ...fetchOpts(), method: 'DELETE' });
         if (r.ok) { loadCategories(); renderCategoryChips(); loadProjects(); }
         else alert('삭제 실패');
-      } catch (_) {
-        alert('네트워크 오류');
+      } catch (e) {
+        alert('네트워크 오류: ' + (e && e.message ? e.message : '연결 실패'));
       }
     }
 
@@ -1310,6 +1510,109 @@
       if (e.target === e.currentTarget) document.getElementById('editModal').classList.remove('open');
     });
 
+    function openNotePanel() {
+      var editNote = document.getElementById('editNote');
+      var notePanelText = document.getElementById('notePanelText');
+      var editFormWrap = document.getElementById('editFormWrap');
+      var notePanel = document.getElementById('notePanel');
+      if (!editFormWrap || !notePanel) return;
+      if (notePanelText) notePanelText.value = (editNote && editNote.value) ? editNote.value : '';
+      editFormWrap.style.display = 'none';
+      notePanel.style.display = 'block';
+      if (notePanelText) notePanelText.focus();
+    }
+    function closeNotePanel() {
+      var editNote = document.getElementById('editNote');
+      var notePanelText = document.getElementById('notePanelText');
+      var editFormWrap = document.getElementById('editFormWrap');
+      var notePanel = document.getElementById('notePanel');
+      if (notePanelText && editNote) editNote.value = notePanelText.value || '';
+      if (notePanel) notePanel.style.display = 'none';
+      if (editFormWrap) editFormWrap.style.display = 'block';
+    }
+
+    document.getElementById('noteViewCloseBtn').addEventListener('click', () => {
+      document.getElementById('noteViewModal').classList.remove('open');
+    });
+    document.getElementById('noteViewModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) document.getElementById('noteViewModal').classList.remove('open');
+    });
+
+    async function openNotesPanel() {
+      const modal = document.getElementById('notesPanelModal');
+      const sel = document.getElementById('notesPanelProject');
+      const text = document.getElementById('notesPanelText');
+      const errEl = document.getElementById('notesPanelError');
+      if (errEl) errEl.style.display = 'none';
+      if (!projects || projects.length === 0) await loadProjects();
+      sel.innerHTML = '<option value="">선택...</option>' + (projects || []).map(p => '<option value="' + p.projectId + '">' + escapeHtml(p.name || '-') + '</option>').join('');
+      text.value = '';
+      modal.classList.add('open');
+    }
+    function closeNotesPanel() {
+      document.getElementById('notesPanelModal').classList.remove('open');
+    }
+    function onNotesPanelProjectChange() {
+      const sel = document.getElementById('notesPanelProject');
+      const text = document.getElementById('notesPanelText');
+      const id = sel.value;
+      const proj = (projects || []).find(p => String(p.projectId) === String(id));
+      text.value = (proj && proj.note) ? String(proj.note) : '';
+    }
+    async function saveNotesPanel() {
+      const sel = document.getElementById('notesPanelProject');
+      const text = document.getElementById('notesPanelText');
+      const errEl = document.getElementById('notesPanelError');
+      errEl.style.display = 'none';
+      const projectId = sel.value;
+      if (!projectId) {
+        errEl.textContent = '프로젝트를 선택하세요.';
+        errEl.style.display = 'block';
+        return;
+      }
+      const proj = (projects || []).find(p => String(p.projectId) === String(projectId));
+      if (!proj) return;
+      try {
+        const r = await fetch(API + '/api/projects/' + projectId, {
+          ...fetchOpts(),
+          method: 'PUT',
+          body: JSON.stringify({
+            name: proj.name,
+            version: proj.version || '',
+            desc: proj.desc || '',
+            tech: proj.tech || '',
+            url: proj.url || '',
+            github_url: proj.github_url || '',
+            etc: proj.etc || '',
+            note: text.value || '',
+            login_id: proj.id || '',
+            login_pw: proj.pw || '',
+            status: proj.status,
+            build: proj.build,
+            category_id: proj.category_id,
+          }),
+        });
+        if (!r.ok) {
+          const data = await r.json().catch(() => ({}));
+          errEl.textContent = data.error || '저장 실패';
+          errEl.style.display = 'block';
+          if (r.status === 401) openLoginModal();
+          return;
+        }
+        closeNotesPanel();
+        await loadProjects();
+      } catch (e) {
+        errEl.textContent = '네트워크 오류: ' + (e && e.message ? e.message : '연결 실패');
+        errEl.style.display = 'block';
+      }
+    }
+    document.getElementById('notesPanelCloseBtn').addEventListener('click', closeNotesPanel);
+    document.getElementById('notesPanelModal').addEventListener('click', (e) => {
+      if (e.target === e.currentTarget) closeNotesPanel();
+    });
+    document.getElementById('notesPanelProject').addEventListener('change', onNotesPanelProjectChange);
+    document.getElementById('notesPanelSaveBtn').addEventListener('click', saveNotesPanel);
+
     async function saveProjectEdit() {
       const projectId = document.getElementById('editProjectId').value;
       const errEl = document.getElementById('editError');
@@ -1330,6 +1633,7 @@
         status: document.getElementById('editStatus').checked,
         build: document.getElementById('editBuild').checked,
         category_id: (catVal && catVal !== '__add_cat__') ? catVal : null,
+        note: document.getElementById('editNote').value || '',
       };
       const isAdd = !projectId;
       if (isAdd && !payload.name) {
